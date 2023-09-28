@@ -5,34 +5,31 @@ function setManifest() {
     var me = opt.dataset.ethernet;
     var ma = opt.dataset.audio;
 
-    // Check if ethernet manifest is available
-    document.getElementById('eth').style.display = me ? "block" : "none";
-    if (me && document.getElementById('ethernet').checked) {
-        //disable ar version
-        document.getElementById('audio').disabled = true;
-        document.getElementById('ar').classList.add("disabled");
-        m = me;
-    } else {
-        document.getElementById('audio').disabled = false;
-        document.getElementById('ar').classList.remove("disabled");
-    }
-
-    //Check if audio manifest is available
-    document.getElementById('ar').style.display = ma ? "block" : "none";
-    if (ma && document.getElementById('audio').checked) {
-        //disable ar version
-        document.getElementById('ethernet').disabled = true;
-        document.getElementById('eth').classList.add("disabled");
-        m = ma;
-    } else {
-        document.getElementById('ethernet').disabled = false;
-        document.getElementById('eth').classList.remove("disabled");
-    }
-
+    //handle ethernet checkbox
+    m = handleCheckbox(m, me, 'eth', 'ar', 'ethernet', 'audio');
+    //handle audioreactive checkbox
+    m = handleCheckbox(m, ma, 'ar', 'eth', 'audio', 'ethernet');
 
     document.getElementById('inst').setAttribute('manifest', m);
-    console.log(m);
     document.getElementById('verstr').textContent = opt.text;
+}
+
+
+
+function handleCheckbox(manifest, checkboxmanifest, primaryDiv, secondaryDiv, primaryCheckbox, secondaryCheckbox) {
+    //Check if specified manifest is available
+    document.getElementById(primaryDiv).style.display = checkboxmanifest ? "block" : "none";
+    if (checkboxmanifest && document.getElementById(primaryCheckbox).checked) {
+        //disable secondary Checkbox and add disabled style to div
+        document.getElementById(secondaryCheckbox).disabled = true;
+        document.getElementById(secondaryDiv).classList.add("disabled");
+        manifest = checkboxmanifest;
+    } else {
+        //enable secondary Checkbox and remove disabled style to div
+        document.getElementById(secondaryCheckbox).disabled = false;
+        document.getElementById(secondaryDiv).classList.remove("disabled");
+    }
+    return manifest;
 }
 
 function resetCheckboxes() {
