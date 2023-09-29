@@ -56,6 +56,36 @@ img {
     color: grey
 }
 
+.radio {
+    display: inline-flex;
+    overflow: hidden;
+    border-radius: 25px;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0);
+
+}
+
+.radio__input {
+    display: none;
+}
+
+.radio__label {
+    padding: 8px 14px;
+    font-size: 14px;
+    font-family: sans-serif;
+    color: #ffffff;
+    background: #09f;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.radio__label:not(:last-of-type) {
+    border-right: 1px solid #006b50;
+}
+
+.radio__input:checked+.radio__label {
+    background: rgb(0, 95, 158);
+}
+
 @keyframes fi {
     from {
         opacity: 0;
@@ -102,7 +132,7 @@ li {
 }
 
 .inst-button {
-    padding: 5px 0;
+    padding: 0;
 }
 
 @media (prefers-color-scheme: dark) {

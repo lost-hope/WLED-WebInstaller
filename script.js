@@ -6,9 +6,9 @@ function setManifest() {
     var ma = opt.dataset.audio;
 
     //handle ethernet checkbox
-    m = handleCheckbox(m, me, 'eth', 'ar', 'ethernet', 'audio');
+    m = handleCheckbox(m, me, 'ethernet');
     //handle audioreactive checkbox
-    m = handleCheckbox(m, ma, 'ar', 'eth', 'audio', 'ethernet');
+    m = handleCheckbox(m, ma, 'audio');
 
     document.getElementById('inst').setAttribute('manifest', m);
     document.getElementById('verstr').textContent = opt.text;
@@ -16,18 +16,10 @@ function setManifest() {
 
 
 
-function handleCheckbox(manifest, checkboxmanifest, primaryDiv, secondaryDiv, primaryCheckbox, secondaryCheckbox) {
+function handleCheckbox(manifest, checkboxmanifest, primaryCheckbox) {
     //Check if specified manifest is available
-    document.getElementById(primaryDiv).style.display = checkboxmanifest ? "block" : "none";
     if (checkboxmanifest && document.getElementById(primaryCheckbox).checked) {
-        //disable secondary Checkbox and add disabled style to div
-        document.getElementById(secondaryCheckbox).disabled = true;
-        document.getElementById(secondaryDiv).classList.add("disabled");
         manifest = checkboxmanifest;
-    } else {
-        //enable secondary Checkbox and remove disabled style to div
-        document.getElementById(secondaryCheckbox).disabled = false;
-        document.getElementById(secondaryDiv).classList.remove("disabled");
     }
     return manifest;
 }

@@ -25,14 +25,6 @@
   <li>Get WLED installed and connected in less than 3 minutes!</li>
 </ol><br><br>
 
-<div class="container inst-button">
-  <esp-web-install-button
-    id="inst"
-    manifest=""
-  >
-    <button class="btn" slot="activate">Install</button>
-  </esp-web-install-button><br>
-
   <!-- add new builds here -->
   <select id="ver" class="btn" onchange="resetCheckboxes();setManifest();">
     <optgroup label="Beta">
@@ -67,20 +59,26 @@
         data-ethernet="bin-v2/sr_0_13_4/manifest_e.json"
         >0.13.4</option>
     </optgroup>
-  </select><br><br>
+  </select><br>
 
-  <div id="ar">
-    <input type="checkbox" id="audio" name="audio" onchange="setManifest()">
-    <label for="audio"> I want an audioreactive version</label><br>
+  <div class="radio" onchange="setManifest()">
+    <input class="radio__input" type="radio" value="normal" name="version" id="normal" checked>
+    <label class="radio__label" for="normal" >Plain</label>
+    <input class="radio__input" type="radio" value="audio" name="version" id="audio">
+    <label class="radio__label" for="audio" >Audioreactive</label>
+    <input class="radio__input" type="radio" value="ethernet" name="version" id="ethernet">
+    <label class="radio__label" for="ethernet" >Ethernet</label>
   </div>
-  <div id="eth">
-    <input type="checkbox" id="ethernet" name="ethernet" onchange="setManifest()">
-    <label for="ethernet"> My board has Ethernet</label><br>
-  </div>
+    <br>
+    <div class="container inst-button">
+      <esp-web-install-button
+        id="inst"
+        manifest=""
+      >
+        <button class="btn" slot="activate">Install</button>
+      </esp-web-install-button><br>
 </div>
-
-</div>
-<br>Powered by <a href="https://esphome.github.io/esp-web-tools/" target="_blank">ESP Web Tools</a><br>
+<br></brY><br>Powered by <a href="https://esphome.github.io/esp-web-tools/" target="_blank">ESP Web Tools</a><br>
 <br><a href="https://github.com/Aircoookie/WLED" target="_blank">GitHub</a>&emsp;<a href="https://kno.wled.ge" target="_blank">kno.wled.ge</a>
 
 <script
