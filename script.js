@@ -18,6 +18,17 @@ function setManifest() {
 
 function handleCheckbox(manifest, checkboxmanifest, primaryCheckbox) {
     //Check if specified manifest is available
+
+    if (!checkboxmanifest) {
+        document.getElementById(primaryCheckbox).disabled = true;
+        document.getElementById(primaryCheckbox + "_label").classList.remove("radio__label");
+        document.getElementById(primaryCheckbox + "_label").classList.add("disabled__label");
+    } else {
+        document.getElementById(primaryCheckbox + "_label").classList.remove("disabled__label");
+        document.getElementById(primaryCheckbox + "_label").classList.add("radio__label");
+    }
+
+
     if (checkboxmanifest && document.getElementById(primaryCheckbox).checked) {
         manifest = checkboxmanifest;
     }
@@ -26,12 +37,9 @@ function handleCheckbox(manifest, checkboxmanifest, primaryCheckbox) {
 
 function resetCheckboxes() {
     document.getElementById('ethernet').checked = false;
+    document.getElementById('ethernet').disabled = false;
     document.getElementById('audio').checked = false;
     document.getElementById('audio').disabled = false;
-    document.getElementById('ar').classList.remove("disabled");
-    document.getElementById('ethernet').disabled = false;
-    document.getElementById('eth').classList.remove("disabled");
-
 }
 
 function checkSupported() {
