@@ -7,11 +7,12 @@ function setManifest() {
     var mt = opt.dataset.test;
 
     //handle ethernet checkbox
-    m = handleCheckbox(m, me, 'ethernet');
+    //m = handleCheckbox(m, me, 'ethernet');
     //handle audioreactive checkbox
-    m = handleCheckbox(m, ma, 'audio');
+    //m = handleCheckbox(m, ma, 'audio');
     //handle audioreactive checkbox
-    m = handleCheckbox(m, mt, 'test');
+    //m = handleCheckbox(m, mt, 'test');
+    m='{"name": "WLED","version": "0.15.0-b2/2404100 audio","home_assistant_domain": "wled","builds": [{"chipFamily": "ESP32","parts": [{ "path": "/bin/beta_0_15_0-b2/esp32_bootloader_v4.bin", "offset": 0 },{ "path": "/bin/beta_0_15_0-b2/WLED_0.15.0-b2_ESP32_audioreactive.bin", "offset": 65536 }]}]}'
 
     document.getElementById('inst').setAttribute('manifest', m);
     document.getElementById('verstr').textContent = opt.text;
