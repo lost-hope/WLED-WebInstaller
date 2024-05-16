@@ -1,0 +1,72 @@
+{
+    "name": "WLED",
+    "version": "0.15.0-b2/2404100",
+    "home_assistant_domain": "wled",
+    "bootloader": [
+        {
+            "chip": "ESP32",
+            "path": "esp32_bootloader_v4.bin", 
+            "offset": 0 
+        },
+        {
+            "chip": "S2",
+            "path": "bootloader_s2.bin", 
+            "offset": 0 
+        },
+        {
+            "chip": "S3",
+            "path": "bootloader_s3.bin", 
+            "offset": 0 
+        },
+        {
+            "chip": "C3",
+            "path": "esp32-c3_bootloader_v2.bin", 
+            "offset": 0 
+        }
+    ],
+    "partition": [
+        {
+            "size": "4MB",
+            "path": "esp32_bootloader_v4.bin", 
+            "offset": 0 
+        },
+        {
+            "size": "8MB",
+            "path": "esp32_bootloader_v4.bin", 
+            "offset": 0 
+        },
+        {
+            "size": "16MB",
+            "path": "esp32_bootloader_v4.bin", 
+            "offset": 0 
+        }
+    ],
+    "firmware":[
+        {
+        "chipFamily": "ESP32",
+        "path": "WLED_0.15.0-b2_ESP32.bin",
+        "offset": 65536
+        },
+        {
+        "chipFamily": "ESP32-C3",
+        "path": "WLED_0.15.0-b2_ESP32-C3.bin", 
+        "offset": 65536
+        },
+        {
+        "chipFamily": "ESP32-S2",
+        "path": "WLED_0.15.0-b2_ESP32-S2.bin", 
+        "offset": 65536
+        },
+        {
+        "chipFamily": "ESP32-S3",
+        "path": "WLED_0.15.0-b2_ESP32-S3_8MB.bin", 
+        "offset": 65536
+        },
+        {
+        "chipFamily": "ESP8266",
+        "path": "WLED_0.15.0-b2_ESP8266.bin", 
+        "offset": 0 
+        }
+    ]
+
+}

@@ -1,10 +1,18 @@
-function setManifest() {
+async function setManifest() {
     var sel = document.getElementById('ver');
     var opt = sel.options[sel.selectedIndex];
-    var m = opt.dataset.manifest;
-    var me = opt.dataset.ethernet;
-    var ma = opt.dataset.audio;
-    var mt = opt.dataset.test;
+    var m;
+    //var me = opt.dataset.ethernet;
+    //var ma = opt.dataset.audio;
+    //var mt = opt.dataset.test;
+    
+
+    const t = new URL(opt.dataset.lookup,location.toString()).toString();
+    console.log(t);
+    const i = await fetch(t);
+    const r = await i.json();
+    console.log(r);
+
 
     //handle ethernet checkbox
     //m = handleCheckbox(m, me, 'ethernet');
@@ -12,7 +20,8 @@ function setManifest() {
     //m = handleCheckbox(m, ma, 'audio');
     //handle audioreactive checkbox
     //m = handleCheckbox(m, mt, 'test');
-    m='{"name": "WLED","version": "0.15.0-b2/2404100 audio","home_assistant_domain": "wled","builds": [{"chipFamily": "ESP32","parts": [{ "path": "/bin/beta_0_15_0-b2/esp32_bootloader_v4.bin", "offset": 0 },{ "path": "/bin/beta_0_15_0-b2/WLED_0.15.0-b2_ESP32_audioreactive.bin", "offset": 65536 }]}]}'
+    //m='{"name": "WLED","version": "0.15.0-b2/2404100 audio","home_assistant_domain": "wled","builds": [{"chipFamily": "ESP32","parts": [{ "path": "/bin/beta_0_15_0-b2/esp32_bootloader_v4.bin", "offset": 0 },{ "path": "/bin/beta_0_15_0-b2/WLED_0.15.0-b2_ESP32_audioreactive.bin", "offset": 65536 }]}]}'
+
 
     document.getElementById('inst').setAttribute('manifest', m);
     document.getElementById('verstr').textContent = opt.text;
