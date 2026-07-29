@@ -19,7 +19,7 @@ version / variant / flash size combination the user picks.
 
 Any static file server works, e.g.:
 
-```
+```bash
 npx serve .
 ```
 
