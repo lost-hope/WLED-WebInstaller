@@ -13,6 +13,7 @@ let i18n_languages = {};   // code -> display name, from lang/languages.json
 let i18n_messages = {};    // code -> { key: text }, fetched on demand
 let i18n_currentLang = I18N_FALLBACK_LANG;
 
+/** Fetch and parse JSON, throwing on non-2xx responses. */
 function i18n_fetchJson(url) {
   return fetch(url).then(function (res) {
     if (!res.ok) throw new Error(url + ': HTTP ' + res.status);
@@ -20,6 +21,7 @@ function i18n_fetchJson(url) {
   });
 }
 
+/** Load translation messages for one language, with in-memory caching. */
 function i18n_loadMessages(lang) {
   if (i18n_messages[lang]) return Promise.resolve(i18n_messages[lang]);
   return i18n_fetchJson('lang/' + lang + '.json').then(function (messages) {
@@ -28,6 +30,7 @@ function i18n_loadMessages(lang) {
   });
 }
 
+/** Apply the current language messages to all elements with data-i18n keys. */
 function i18n_apply() {
   const fallback = i18n_messages[I18N_FALLBACK_LANG] || {};
   const messages = i18n_messages[i18n_currentLang] || {};
@@ -42,6 +45,10 @@ function i18n_apply() {
 
 // Loads the current language (plus the English fallback, so missing keys
 // still render something) and applies it to the page.
+/**
+ * Load and apply translations for the requested language.
+ * Falls back to English if loading fails.
+ */
 function i18n(lang) {
   if (lang) i18n_currentLang = lang;
   const needed = [I18N_FALLBACK_LANG];
@@ -57,6 +64,7 @@ function i18n(lang) {
     });
 }
 
+/** Populate the language <select> with available options. */
 function i18n_populateLanguageSelect() {
   const select = document.getElementById('languageSelect');
   select.innerHTML = '';
@@ -69,12 +77,14 @@ function i18n_populateLanguageSelect() {
   select.value = i18n_currentLang;
 }
 
+/** Persist the selected language and refresh rendered translations. */
 function changeLanguage() {
   const selectedLang = document.getElementById('languageSelect').value;
   localStorage.setItem(I18N_LANG_STORAGE_KEY, selectedLang);
   i18n(selectedLang);
 }
 
+/** Initialize i18n language metadata, selector wiring, and first render. */
 function i18nInit() {
   i18n_currentLang = localStorage.getItem(I18N_LANG_STORAGE_KEY) || I18N_FALLBACK_LANG;
 

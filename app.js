@@ -224,6 +224,7 @@
   // Helpers
   // ---------------------------------------------------------------------
 
+  /** Return true when a chip entry has a flash-size selection axis. */
   function hasFlashAxis(entry) {
     return entry !== null && typeof entry === 'object';
   }
@@ -251,6 +252,7 @@
     return 'unknown';
   }
 
+  /** Build the human-friendly release label shown in the version dropdown. */
   function getDisplayVersion(release) {
     if (release.tag_name === 'nightly') {
       return extractVersionFromAssets(release.assets) + ' Nightly';
@@ -258,6 +260,7 @@
     return release.tag_name.replace(/^v/, '');
   }
 
+  /** Build the version string stored in generated manifests. */
   function getManifestVersion(release, variantName) {
     let ver = release.tag_name === 'nightly'
       ? extractVersionFromAssets(release.assets)
@@ -266,6 +269,7 @@
     return ver;
   }
 
+  /** Classify a release into release/beta/nightly buckets. */
   function categorize(release) {
     if (release.tag_name === 'nightly') return 'nightly';
     if (release.prerelease) return 'beta';
@@ -338,6 +342,7 @@
     };
   }
 
+  /** Convert a manifest object into a blob URL consumable by esp-web-tools. */
   function createManifestUrl(manifest) {
     const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
     return URL.createObjectURL(blob);
@@ -424,6 +429,7 @@
     return opt;
   }
 
+  /** Populate the release dropdown with grouped options and generated manifests. */
   function populateDropdown(releases) {
     const sel = document.getElementById('ver');
 
@@ -467,6 +473,7 @@
   // Caching (sessionStorage, 5-minute TTL)
   // ---------------------------------------------------------------------
 
+  /** Read cached GitHub release metadata if it is still within TTL. */
   function getCachedReleases() {
     try {
       const raw = sessionStorage.getItem(CACHE_KEY);
@@ -477,6 +484,7 @@
     return null;
   }
 
+  /** Persist GitHub release metadata in sessionStorage with a timestamp. */
   function cacheReleases(releases) {
     try {
       sessionStorage.setItem(CACHE_KEY, JSON.stringify({ timestamp: Date.now(), releases: releases }));
@@ -487,21 +495,25 @@
   // UI wiring
   // ---------------------------------------------------------------------
 
+  /** Get the currently selected release <option> element. */
   function currentOption() {
     const sel = document.getElementById('ver');
     return sel.options[sel.selectedIndex];
   }
 
+  /** Get the selected firmware variant id from the variant radio group. */
   function selectedVariant() {
     const checked = document.querySelector('input[name="version"]:checked');
     return checked ? checked.value : 'normal';
   }
 
+  /** Get the selected flash-size id from the flash-size radio group. */
   function selectedFlashSize() {
     const checked = document.querySelector('input[name="flashsize"]:checked');
     return checked ? checked.value : DEFAULT_FLASH_SIZE;
   }
 
+  /** Get the selected HUB75 layout id from the layout radio group. */
   function selectedLayout() {
     const checked = document.querySelector('input[name="layout"]:checked');
     return checked ? checked.value : DEFAULT_HUB75_LAYOUT;
@@ -587,6 +599,7 @@
     }
   }
 
+  /** Apply current release/variant/size selections and set install manifest URL. */
   function setManifest() {
     const opt = currentOption();
     if (!opt || !opt._manifests) return;
@@ -614,34 +627,41 @@
     document.getElementById('verstr').textContent = opt.text;
   }
 
+  /** Reset variant selection to the default "normal" option. */
   function resetVariant() {
     document.getElementById('normal').checked = true;
   }
 
+  /** Switch to the unsupported-browser panel when install is unavailable. */
   function checkSupported() {
     if (document.getElementById('inst').hasAttribute('install-unsupported')) unsupported();
   }
 
+  /** Show unsupported-browser message and hide flasher UI. */
   function unsupported() {
     document.getElementById('flasher').hidden = true;
     document.getElementById('unsupported').hidden = false;
   }
 
+  /** Reveal troubleshooting instructions for serial/WebSerial issues. */
   function showSerialHelp() {
     document.getElementById('showSerialHelp').hidden = true;
     document.getElementById('serialHelp').hidden = false;
   }
 
+  /** Show a release-loading failure panel. */
   function showLoadError() {
     document.getElementById('flasher').hidden = true;
     document.getElementById('loadError').hidden = false;
   }
 
+  /** Show a CORS-proxy blocked panel when firmware bytes cannot be fetched. */
   function showProxyBlocked() {
     document.getElementById('flasher').hidden = true;
     document.getElementById('proxyBlocked').hidden = false;
   }
 
+  /** Recompute selected manifest after release changes. */
   function applySelection() {
     resetVariant();
     setManifest();
@@ -659,6 +679,7 @@
 
   let proxyHealthChecked = false;
 
+  /** Pick a real firmware asset URL for verifying CORS proxy behavior. */
   function getHealthCheckUrl(release) {
     const chipEntries = VARIANTS.normal;
     for (const chip in chipEntries) {
@@ -669,6 +690,7 @@
     return null;
   }
 
+  /** Validate that the CORS proxy returns actual firmware bytes. */
   function checkProxyHealth(release) {
     if (proxyHealthChecked) return;
     proxyHealthChecked = true;
@@ -696,11 +718,13 @@
       });
   }
 
+  /** Run the one-time proxy check against the currently selected release. */
   function runInitialProxyCheck() {
     const opt = currentOption();
     if (opt && opt._release) checkProxyHealth(opt._release);
   }
 
+  /** Load releases from cache/API, build UI options, and apply default selection. */
   function loadReleases() {
     const cached = getCachedReleases();
     if (cached) {
@@ -731,6 +755,7 @@
   // Wire up DOM events once the document is ready
   // ---------------------------------------------------------------------
 
+  /** Initialize page state and wire all UI event listeners. */
   function init() {
     checkSupported();
     if (typeof i18nInit === 'function') i18nInit();
