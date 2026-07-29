@@ -679,11 +679,16 @@
       return;
     }
 
-    fetch(url, { method: 'HEAD' })
+    fetch(url, { headers: { 'Range': 'bytes=0-1024' } })
       .then(function (res) {
-        if (!res.ok) throw new Error('CORS proxy responded with ' + res.status);
-        document.getElementById('installBtn').disabled = false;
-        document.getElementById('proxyChecking').hidden = true;
+        if (!res.ok && res.status !== 206) throw new Error('CORS proxy responded with ' + res.status);
+        return res.arrayBuffer().then(function (buf) {
+          if (buf.byteLength === 0) throw new Error('CORS proxy returned empty response');
+          const view = new Uint8Array(buf);
+          if (view[0] !== 0xE9) throw new Error('CORS proxy returned invalid firmware data (no ESP image magic byte)');
+          document.getElementById('installBtn').disabled = false;
+          document.getElementById('proxyChecking').hidden = true;
+        });
       })
       .catch(function (err) {
         console.warn('CORS proxy health check failed - firmware downloads are likely blocked for this domain.', err);
