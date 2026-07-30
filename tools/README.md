@@ -119,7 +119,7 @@ offsets/sizes, run the command above, and wire the new file into
 
 ```bash
 python tools/gen_boot_images.py bootloader esp32s3 <path-to-bootloader.bin> \
-    --flash-size 4MB -o bin/boot/bootloader_s3_4m.bin
+    --flash-size 4MB --offset 0x0 -o bin/boot/bootloader_s3_4m.bin
 ```
 
 `<path-to-bootloader.bin>` is a bootloader produced by actually building
@@ -133,12 +133,30 @@ write_flash` does at flash time - here it's done ahead of time, since ESP
 Web Tools flashes bootloader files as-is). Verified to reproduce
 `bootloader_s3_4m.bin` and `bootloader_s3_16m.bin` byte-for-byte starting
 from `bootloader_s3.bin` (the 8MB build). Same command for other chips,
-just change `--chip` and the source:
+just change `--chip`, `--offset`, and the source:
 
 ```bash
 python tools/gen_boot_images.py bootloader esp32s2 bin/boot/bootloader_s2.bin \
-    --flash-size 8MB -o bin/boot/bootloader_s2_8m.bin
+    --flash-size 8MB --offset 0x1000 -o bin/boot/bootloader_s2_8m.bin
 ```
+
+**`--offset` must be this chip's real bootloader flash offset** - `0x1000`
+for ESP32/ESP32-S2, `0x0` for ESP32-S3/ESP32-C3 (and most other newer
+chips) - not just "0x0 because that's where the output file's byte 0
+goes." `esptool`'s `merge-bin` only patches the flash-size/checksum/hash
+fields of the image it finds *at that chip's canonical bootloader offset*;
+give it the wrong offset and it silently copies the input through
+**unpatched, with no error or warning** - which is exactly the bug that
+originally shipped `bootloader_esp32_8m.bin`/`_16m.bin` and
+`bootloader_s2_8m.bin`/`_16m.bin` still internally flagged as 4MB, and
+caused a boot loop on real 8MB ESP32 hardware (the ROM loads the still-4MB
+bootloader fine, then the mismatch between what it thinks the flash size is
+and the actual 8MB partition table crashes it before it can print anything).
+Passing a nonzero `--offset` also makes `merge-bin` prepend that many
+`0xFF` padding bytes to the output (since it assumes it's building a full
+image starting at address 0) - this command strips that padding back off
+afterwards so the file's byte 0 is still the real bootloader, ready to be
+flashed starting at that offset as its own manifest part.
 
 Valid `--flash-size` values: `1MB`, `2MB`, `4MB`, `8MB`, `16MB`, `32MB`.
 
