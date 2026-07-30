@@ -50,7 +50,8 @@ load, no code changes required. Missing keys in a translation silently fall back
 - `app.js` - release fetching, manifest generation, UI wiring.
 - `i18n.js` - loads `lang/` and applies translations.
 - `lang/` - one JSON file per language, plus `languages.json` listing them.
-- `bin/boot/` - chip bootloaders and partition tables needed to flash bare chips (WLED release assets only contain the application binary).
+- `bin/boot/` - chip bootloaders and partition tables needed to flash bare chips (WLED release assets only contain the application binary); see [bin/boot/README.md](bin/boot/README.md) for what each file is.
+- `tools/` - maintainer scripts to (re)generate the files in `bin/boot/`; see [tools/README.md](tools/README.md).
 
 ## License
 
