@@ -20,10 +20,14 @@ Regenerate a partition table from its CSV:
     python tools/gen_boot_images.py partitions tools/partition_tables/s3_8m.csv \\
         -o bin/boot/partitions_s3_8m.bin
 
-Re-flag a freshly built 8MB ESP32-S3 bootloader for 4MB/16MB boards:
+Re-flag a freshly built 8MB ESP32-S3 bootloader for 4MB/16MB boards. Note
+--offset: it's this chip's real bootloader flash offset (0x1000 for
+esp32/esp32s2, 0x0 for esp32s3/esp32c3/etc.) - esptool only patches the
+flash-size field of the image it finds AT that offset, so getting it wrong
+silently produces an unpatched, unflagged output with no error message:
 
     python tools/gen_boot_images.py bootloader esp32s3 bootloader.bin \\
-        --flash-size 4MB -o bin/boot/bootloader_s3_4m.bin
+        --flash-size 4MB --offset 0x0 -o bin/boot/bootloader_s3_4m.bin
 
 Build the single merged boot image used for ESP32 / ESP32-C3 (bootloader +
 partition table + OTA seed, flattened to one file flashed at offset 0):
@@ -130,13 +134,27 @@ def _run_esptool(argv):
 
 
 def cmd_bootloader(args):
+    # merge-bin only patches the flash-size/mode/freq header fields (and the
+    # appended SHA-256 digest) of an image if it's the one located at this
+    # chip's real bootloader offset - so we have to pass that offset, not
+    # 0x0, for esptool to actually do anything. But merge-bin's job is to
+    # build a full image starting at address 0, so passing a nonzero offset
+    # makes it prepend that many 0xFF padding bytes before the (correctly
+    # patched) bootloader bytes. We want a standalone bootloader file whose
+    # byte 0 IS the real image - app.js supplies the offset separately when
+    # flashing this file as its own manifest part - so strip that padding
+    # back off afterwards.
+    offset = int(args.offset, 0)
     _run_esptool([
         "--chip", args.chip,
         "merge-bin",
         "-o", args.output,
         "--flash-size", args.flash_size,
-        "0x0", args.source,
+        args.offset, args.source,
     ])
+    if offset:
+        data = Path(args.output).read_bytes()
+        Path(args.output).write_bytes(data[offset:])
 
 
 def cmd_merge(args):
@@ -167,6 +185,13 @@ def main():
     p_bootloader.add_argument("chip", help="e.g. esp32, esp32s2, esp32s3, esp32c3")
     p_bootloader.add_argument("source", help="reference bootloader .bin (any flash size)")
     p_bootloader.add_argument("--flash-size", required=True, help="e.g. 4MB, 8MB, 16MB, 32MB")
+    p_bootloader.add_argument(
+        "--offset", required=True,
+        help="this chip's bootloader flash offset, e.g. 0x1000 for esp32/esp32s2, 0x0 for "
+             "esp32s3/esp32c3/etc. - esptool only patches the flash-size field of the image "
+             "it finds AT this chip's real bootloader offset, so getting this wrong silently "
+             "produces an unpatched, unflagged output with no error (see bin/boot/README.md)"
+    )
     p_bootloader.add_argument("-o", "--output", required=True)
     p_bootloader.set_defaults(func=cmd_bootloader)
 
