@@ -109,7 +109,22 @@
           <input class="radio__input" type="radio" value="16MB" name="flashsize" id="fs_16MB">
           <label class="radio__label" for="fs_16MB" id="fs_16MB_label">16MB</label>
         </div>
-        <div class="row-hint" data-i18n="flashSizeHint">The board type shown on each button is the one that size applies to.</div>
+        <table class="flash-size-chart" id="flashSizeChart">
+          <thead>
+            <tr>
+              <th data-i18n="flashSizeChartSize">Size</th>
+              <th data-i18n="flashSizeChartChips">Applies to</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr id="fsChart_1MB"><td>1MB</td><td id="fsChart_1MB_chips"></td></tr>
+            <tr id="fsChart_2MB"><td>2MB</td><td id="fsChart_2MB_chips"></td></tr>
+            <tr id="fsChart_4MB"><td>4MB</td><td id="fsChart_4MB_chips"></td></tr>
+            <tr id="fsChart_8MB"><td>8MB</td><td id="fsChart_8MB_chips"></td></tr>
+            <tr id="fsChart_16MB"><td>16MB</td><td id="fsChart_16MB_chips"></td></tr>
+          </tbody>
+        </table>
+        <div class="row-hint" data-i18n="flashSizeHint">Pick the flash size that matches your board - see the chart above for which chip families use each size.</div>
       </div>
       <br>
 
@@ -129,7 +144,24 @@
           <input class="radio__input" type="radio" value="waveshare" name="layout" id="layout_waveshare">
           <label class="radio__label" for="layout_waveshare" id="layout_waveshare_label">Waveshare ESP32-S3-RGB-Matrix</label>
         </div>
-        <div class="row-hint" data-i18n="layoutHint">Pick the board matching your HUB75 setup - the chip and flash size it needs are shown in parentheses.</div>
+        <table class="flash-size-chart" id="layoutChart">
+          <thead>
+            <tr>
+              <th data-i18n="layoutChartBoard">Board</th>
+              <th data-i18n="layoutChartChip">Chip</th>
+              <th data-i18n="layoutChartSize">Flash size</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr id="layoutChart_esp32_default"><td>ESP32 (default pinout)</td><td>ESP32</td><td>4MB</td></tr>
+            <tr id="layoutChart_esp32_forum"><td>ESP32 (forum pinout)</td><td>ESP32</td><td>4MB</td></tr>
+            <tr id="layoutChart_hdwf2"><td>Huidu HD-WF2</td><td>ESP32-S3</td><td>4MB</td></tr>
+            <tr id="layoutChart_matrixportal"><td>Adafruit MatrixPortal S3</td><td>ESP32-S3</td><td>8MB</td></tr>
+            <tr id="layoutChart_moonhub"><td>MOONHUB / LilyGO T7-S3</td><td>ESP32-S3</td><td>16MB</td></tr>
+            <tr id="layoutChart_waveshare"><td>Waveshare ESP32-S3-RGB-Matrix</td><td>ESP32-S3</td><td>32MB</td></tr>
+          </tbody>
+        </table>
+        <div class="row-hint" data-i18n="layoutHint">Pick the board matching your HUB75 setup - see the chart above for the chip and flash size it needs.</div>
       </div>
       <br>
 
@@ -150,6 +182,11 @@
       <span data-i18n="cors2"></span><br>
 
       <br><a href="https://github.com/wled/WLED" target="_blank">GitHub</a>&emsp;<a href="https://kno.wled.ge" target="_blank">kno.wled.ge</a>
+
+      <div id="buildInfo" class="build-info" hidden>
+        <span data-i18n="buildInfoLabel">Installer build:</span>
+        <span id="buildInfoValue"></span>
+      </div>
     </div>
   </div>
 

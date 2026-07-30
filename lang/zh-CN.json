@@ -29,12 +29,18 @@
   "debug": "调试版",
   "hub75": "HUB75 点阵屏",
   "flashSize": "闪存大小：",
-  "flashSizeHint": "每个按钮上显示的开发板类型即该容量适用的开发板。",
+  "flashSizeHint": "选择与您的开发板匹配的闪存大小——请参见上方图表，了解每种大小适用于哪些芯片系列。",
+  "flashSizeChartSize": "大小",
+  "flashSizeChartChips": "适用于",
   "layout": "布局：",
-  "layoutHint": "请选择与您的 HUB75 设置匹配的开发板——括号中显示了所需的芯片型号和闪存大小。",
+  "layoutHint": "请选择与您的 HUB75 设置匹配的开发板——请参见上方图表，了解所需的芯片型号和闪存大小。",
+  "layoutChartBoard": "开发板",
+  "layoutChartChip": "芯片",
+  "layoutChartSize": "闪存大小",
   "install": "安装",
   "powered1": "",
   "powered2": " 强力驱动",
   "cors1": "CORS 代理由 ",
-  "cors2": " 提供支持"
+  "cors2": " 提供支持",
+  "buildInfoLabel": "安装程序构建："
 }

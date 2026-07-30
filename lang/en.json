@@ -29,12 +29,18 @@
   "debug": "DEBUG",
   "hub75": "HUB75 Matrix",
   "flashSize": "Flash size:",
-  "flashSizeHint": "The board type shown on each button is the one that size applies to.",
+  "flashSizeHint": "Pick the flash size that matches your board - see the chart above for which chip families use each size.",
+  "flashSizeChartSize": "Size",
+  "flashSizeChartChips": "Applies to",
   "layout": "Layout:",
-  "layoutHint": "Pick the board matching your HUB75 setup - the chip and flash size it needs are shown in parentheses.",
+  "layoutHint": "Pick the board matching your HUB75 setup - see the chart above for the chip and flash size it needs.",
+  "layoutChartBoard": "Board",
+  "layoutChartChip": "Chip",
+  "layoutChartSize": "Flash size",
   "install": "Install",
   "powered1": "Powered by ",
   "powered2": "",
   "cors1": "CORS proxy by ",
-  "cors2": ""
+  "cors2": "",
+  "buildInfoLabel": "Installer build:"
 }

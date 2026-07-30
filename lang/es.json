@@ -29,12 +29,18 @@
   "debug": "Versión de depuración",
   "hub75": "Matriz HUB75",
   "flashSize": "Tamaño de la memoria flash:",
-  "flashSizeHint": "El tipo de placa que se muestra en cada botón es aquel al que se aplica ese tamaño.",
+  "flashSizeHint": "Elige el tamaño de flash que coincida con tu placa; consulta la tabla de arriba para ver qué familias de chips usan cada tamaño.",
+  "flashSizeChartSize": "Tamaño",
+  "flashSizeChartChips": "Se aplica a",
   "layout": "Distribución:",
-  "layoutHint": "Elige la placa que coincida con tu configuración HUB75; el chip y el tamaño de flash necesarios se muestran entre paréntesis.",
+  "layoutHint": "Elige la placa que coincida con tu configuración HUB75; consulta la tabla de arriba para ver el chip y el tamaño de flash que necesita.",
+  "layoutChartBoard": "Placa",
+  "layoutChartChip": "Chip",
+  "layoutChartSize": "Tamaño de flash",
   "install": "Instalar",
   "powered1": "Desarrollado con ",
   "powered2": "",
   "cors1": "Proxy CORS por ",
-  "cors2": ""
+  "cors2": "",
+  "buildInfoLabel": "Compilación del instalador:"
 }

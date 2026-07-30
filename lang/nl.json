@@ -29,12 +29,18 @@
   "debug": "Debugversie",
   "hub75": "HUB75-matrix",
   "flashSize": "Flashgrootte:",
-  "flashSizeHint": "Het board-type dat op elke knop wordt weergegeven, is het board waarop die grootte van toepassing is.",
+  "flashSizeHint": "Kies de flashgrootte die bij uw board past - zie de tabel hierboven voor welke chipfamilies elke grootte gebruiken.",
+  "flashSizeChartSize": "Grootte",
+  "flashSizeChartChips": "Van toepassing op",
   "layout": "Lay-out:",
-  "layoutHint": "Kies het board dat bij uw HUB75-opstelling past - de benodigde chip en flashgrootte staan tussen haakjes.",
+  "layoutHint": "Kies het board dat bij uw HUB75-opstelling past - zie de tabel hierboven voor de benodigde chip en flashgrootte.",
+  "layoutChartBoard": "Board",
+  "layoutChartChip": "Chip",
+  "layoutChartSize": "Flashgrootte",
   "install": "Installeren",
   "powered1": "Mogelijk gemaakt door ",
   "powered2": "",
   "cors1": "CORS-proxy door ",
-  "cors2": ""
+  "cors2": "",
+  "buildInfoLabel": "Installer-build:"
 }

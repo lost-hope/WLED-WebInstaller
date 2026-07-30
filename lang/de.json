@@ -29,12 +29,18 @@
   "debug": "Debug-Version",
   "hub75": "HUB75-Matrix",
   "flashSize": "Speichergröße:",
-  "flashSizeHint": "Der auf jeder Schaltfläche angezeigte Board-Typ ist der, für den diese Größe gilt.",
+  "flashSizeHint": "Wählen Sie die Speichergröße, die zu Ihrem Board passt - in der Tabelle oben sehen Sie, welche Chip-Familien welche Größe verwenden.",
+  "flashSizeChartSize": "Größe",
+  "flashSizeChartChips": "Gilt für",
   "layout": "Layout:",
-  "layoutHint": "Wählen Sie das Board, das zu Ihrem HUB75-Aufbau passt - der benötigte Chip und die Speichergröße stehen in Klammern.",
+  "layoutHint": "Wählen Sie das Board, das zu Ihrem HUB75-Aufbau passt - in der Tabelle oben sehen Sie den benötigten Chip und die Speichergröße.",
+  "layoutChartBoard": "Board",
+  "layoutChartChip": "Chip",
+  "layoutChartSize": "Speichergröße",
   "install": "Installieren",
   "powered1": "Bereitgestellt von ",
   "powered2": "",
   "cors1": "CORS-Proxy von ",
-  "cors2": ""
+  "cors2": "",
+  "buildInfoLabel": "Installer-Build:"
 }
