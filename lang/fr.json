@@ -29,12 +29,18 @@
   "debug": "Version de débogage",
   "hub75": "Matrice HUB75",
   "flashSize": "Taille de la mémoire flash :",
-  "flashSizeHint": "Le type de carte indiqué sur chaque bouton est celui auquel cette taille s'applique.",
+  "flashSizeHint": "Choisissez la taille de flash correspondant à votre carte - consultez le tableau ci-dessus pour savoir quelles familles de puces utilisent chaque taille.",
+  "flashSizeChartSize": "Taille",
+  "flashSizeChartChips": "S'applique à",
   "layout": "Disposition :",
-  "layoutHint": "Choisissez la carte correspondant à votre configuration HUB75 - la puce et la taille de flash requises sont indiquées entre parenthèses.",
+  "layoutHint": "Choisissez la carte correspondant à votre configuration HUB75 - consultez le tableau ci-dessus pour connaître la puce et la taille de flash requises.",
+  "layoutChartBoard": "Carte",
+  "layoutChartChip": "Puce",
+  "layoutChartSize": "Taille de flash",
   "install": "Installer",
   "powered1": "Propulsé par ",
   "powered2": "",
   "cors1": "Proxy CORS par ",
-  "cors2": ""
+  "cors2": "",
+  "buildInfoLabel": "Build de l'installateur :"
 }

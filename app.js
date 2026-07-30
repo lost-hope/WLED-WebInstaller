@@ -579,7 +579,13 @@
     });
   }
 
-  /** Enable/disable + show/hide the flash-size radio buttons, and hide the whole row if irrelevant. */
+  /**
+   * Enable/disable + show/hide the flash-size radio buttons, and hide the
+   * whole row if irrelevant. The buttons themselves only ever show the
+   * size (e.g. "8MB") - which chips that size applies to is rendered in
+   * the small chart below instead, so the buttons stay a fixed, compact
+   * width regardless of how many chips share a size.
+   */
   function updateFlashSizeAvailability(opt, variantName) {
     const row = document.getElementById('flashSizeRow');
     const info = opt._flashAvailability ? opt._flashAvailability[variantName] : null;
@@ -593,12 +599,16 @@
     FLASH_SIZES.forEach(function (fs) {
       const input = document.getElementById('fs_' + fs.id);
       const label = document.getElementById('fs_' + fs.id + '_label');
+      const chartRow = document.getElementById('fsChart_' + fs.id);
+      const chartChips = document.getElementById('fsChart_' + fs.id + '_chips');
       const chips = info.chipsBySize[fs.id];
       const available = chips.length > 0;
       input.disabled = !available;
       label.classList.toggle('disabled__label', !available);
       label.classList.toggle('radio__label', available);
-      label.textContent = available ? fs.label + ' (' + chips.join(', ') + ')' : fs.label;
+      label.textContent = fs.label;
+      chartRow.hidden = !available;
+      chartChips.textContent = chips.join(', ');
     });
 
     // If the currently checked size is no longer available, fall back to the
@@ -611,18 +621,25 @@
     }
   }
 
-  /** Enable/disable the HUB75 layout radio buttons and label each with its chip + flash size. */
+  /**
+   * Enable/disable the HUB75 layout radio buttons and hide/show the whole
+   * row if irrelevant. Buttons only show the board name - the chip + flash
+   * size each one needs is rendered in the chart below instead, same
+   * treatment as the flash-size buttons above.
+   */
   function updateLayoutAvailability(opt) {
     const info = opt._hub75Availability || {};
 
     HUB75_LAYOUTS.forEach(function (layout) {
       const input = document.getElementById('layout_' + layout.id);
       const label = document.getElementById('layout_' + layout.id + '_label');
+      const chartRow = document.getElementById('layoutChart_' + layout.id);
       const available = !!info[layout.id];
       input.disabled = !available;
       label.classList.toggle('disabled__label', !available);
       label.classList.toggle('radio__label', available);
-      label.textContent = layout.label + ' (' + layout.chip + ', ' + layout.flashSizeLabel + ')';
+      label.textContent = layout.label;
+      chartRow.hidden = !available;
     });
 
     const checkedInput = document.getElementById('layout_' + selectedLayout());
@@ -800,6 +817,33 @@
   }
 
   // ---------------------------------------------------------------------
+  // Build info (footer)
+  // ---------------------------------------------------------------------
+  // Shows when this copy of index.html/app.js was last built, so you can
+  // tell a stale cached/deployed copy from a fresh one at a glance. Reads
+  // build-info.json, a small file regenerated from git state by
+  // tools/update_build_info.py (see tools/README.md) - not present until
+  // that's been run at least once, so this fails silently (footer just
+  // stays hidden) rather than showing an error on a fresh checkout.
+
+  /** Fetch build-info.json (if present) and render it in the footer. */
+  function loadBuildInfo() {
+    fetch('build-info.json')
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function (info) {
+        const date = new Date(info.builtAt);
+        const formatted = isNaN(date) ? info.builtAt : date.toLocaleString();
+        document.getElementById('buildInfoValue').textContent =
+          formatted + ' (' + info.commit + (info.dirty ? '+' : '') + ')';
+        document.getElementById('buildInfo').hidden = false;
+      })
+      .catch(function () { /* build-info.json not generated yet - stay hidden */ });
+  }
+
+  // ---------------------------------------------------------------------
   // Wire up DOM events once the document is ready
   // ---------------------------------------------------------------------
 
@@ -807,6 +851,7 @@
   function init() {
     checkSupported();
     if (typeof i18nInit === 'function') i18nInit();
+    loadBuildInfo();
 
     document.getElementById('ver').addEventListener('change', applySelection);
     document.getElementById('versionGroup').addEventListener('change', setManifest);

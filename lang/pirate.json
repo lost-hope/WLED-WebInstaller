@@ -29,12 +29,18 @@
   "debug": "DEBUG (fer bilge rats)",
   "hub75": "HUB75 Matrix o' Doom",
   "flashSize": "Treasure Chest Size:",
-  "flashSizeHint": "The vessel shown on each button be the one that chest size fits.",
+  "flashSizeHint": "Pick the chest size that fits yer vessel - see the chart above fer which chip clans use each size.",
+  "flashSizeChartSize": "Chest Size",
+  "flashSizeChartChips": "Fits These Vessels",
   "layout": "Ship's Layout:",
-  "layoutHint": "Pick the vessel matchin' yer HUB75 rig - the chip and chest size needed be shown in parentheses.",
+  "layoutHint": "Pick the vessel matchin' yer HUB75 rig - see the chart above fer the chip and chest size it needs.",
+  "layoutChartBoard": "Vessel",
+  "layoutChartChip": "Chip",
+  "layoutChartSize": "Chest Size",
   "install": "Set Sail!",
   "powered1": "Powered by the winds of ",
   "powered2": "",
   "cors1": "CORS proxy manned by ",
-  "cors2": ""
+  "cors2": "",
+  "buildInfoLabel": "Installer built:"
 }
