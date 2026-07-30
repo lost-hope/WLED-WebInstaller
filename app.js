@@ -33,33 +33,74 @@
   // be flashed before the WLED firmware itself. The firmware part is always
   // appended last, at firmwareOffset.
   //
-  // The ESP32-S3 partition table depends on the amount of flash on the
-  // board, so its bootParts is a function of the selected flash size.
+  // `flashSizes` is only present for chips whose bootParts can vary by flash
+  // size - it drives the flash-size selector in the UI even though WLED
+  // itself ships a single firmware asset for these chips (see resolveSuffix
+  // / getFlashSizeAvailability, which fall back to a chip's declared
+  // `flashSizes` when its VARIANTS entry is a plain string rather than a
+  // per-size suffix map).
 
   const CHIP_CONFIG = {
     'ESP32': {
       chipFamily: 'ESP32',
-      fixedFlashSize: '4MB',
-      bootParts: () => [
-        { path: bootBase + 'esp32_bootloader_v4.bin', offset: 0 }
-      ],
+      defaultFlashSize: '4MB',
+      flashSizes: ['4MB', '8MB', '16MB'],
+      // 4MB keeps using the original merged all-in-one boot image
+      // (bootloader + partition table + otadata flattened into one file,
+      // flashed at offset 0 - see bin/boot/README.md). 8MB/16MB use a
+      // bootloader re-flagged for that size paired with a separate,
+      // larger partition table instead, the same way ESP32-S3 already
+      // does below.
+      bootParts: (flashSizeId) => {
+        const files = {
+          '8MB': { bootloader: 'bootloader_esp32_8m.bin', partitions: 'partitions_esp32_8m.bin' },
+          '16MB': { bootloader: 'bootloader_esp32_16m.bin', partitions: 'partitions_esp32_16m.bin' }
+        };
+        const f = files[flashSizeId];
+        if (!f) return [{ path: bootBase + 'esp32_bootloader_v4.bin', offset: 0 }];
+        return [
+          { path: bootBase + f.bootloader, offset: 4096 },
+          { path: bootBase + f.partitions, offset: 32768 }
+        ];
+      },
       firmwareOffset: 65536
     },
     'ESP32-C3': {
       chipFamily: 'ESP32-C3',
-      fixedFlashSize: '4MB',
-      bootParts: () => [
-        { path: bootBase + 'esp32-c3_bootloader_v2.bin', offset: 0 }
-      ],
+      defaultFlashSize: '4MB',
+      flashSizes: ['4MB', '8MB', '16MB'],
+      // Same split as ESP32 above: 4MB is the original merged image, 8MB/16MB
+      // are a re-flagged bootloader + separate partition table.
+      bootParts: (flashSizeId) => {
+        const files = {
+          '8MB': { bootloader: 'bootloader_c3_8m.bin', partitions: 'partitions_c3_8m.bin' },
+          '16MB': { bootloader: 'bootloader_c3_16m.bin', partitions: 'partitions_c3_16m.bin' }
+        };
+        const f = files[flashSizeId];
+        if (!f) return [{ path: bootBase + 'esp32-c3_bootloader_v2.bin', offset: 0 }];
+        return [
+          { path: bootBase + f.bootloader, offset: 0 },
+          { path: bootBase + f.partitions, offset: 32768 }
+        ];
+      },
       firmwareOffset: 65536
     },
     'ESP32-S2': {
       chipFamily: 'ESP32-S2',
-      fixedFlashSize: '4MB',
-      bootParts: () => [
-        { path: bootBase + 'bootloader_s2.bin', offset: 4096 },
-        { path: bootBase + 'partitions_s2_4m.bin', offset: 32768 }
-      ],
+      defaultFlashSize: '4MB',
+      flashSizes: ['4MB', '8MB', '16MB'],
+      bootParts: (flashSizeId) => {
+        const files = {
+          '4MB': { bootloader: 'bootloader_s2.bin', partitions: 'partitions_s2_4m.bin' },
+          '8MB': { bootloader: 'bootloader_s2_8m.bin', partitions: 'partitions_s2_8m.bin' },
+          '16MB': { bootloader: 'bootloader_s2_16m.bin', partitions: 'partitions_s2_16m.bin' }
+        };
+        const f = files[flashSizeId] || files['4MB'];
+        return [
+          { path: bootBase + f.bootloader, offset: 4096 },
+          { path: bootBase + f.partitions, offset: 32768 }
+        ];
+      },
       firmwareOffset: 65536
     },
     'ESP32-S3': {
@@ -117,7 +158,7 @@
       chip: 'ESP32',
       suffix: '_ESP32_HUB75.bin',
       flashSizeLabel: '4MB',
-      bootParts: () => CHIP_CONFIG['ESP32'].bootParts(),
+      bootParts: () => CHIP_CONFIG['ESP32'].bootParts('4MB'),
       firmwareOffset: CHIP_CONFIG['ESP32'].firmwareOffset
     },
     {
@@ -126,7 +167,7 @@
       chip: 'ESP32',
       suffix: '_ESP32_HUB75_forum_pinout.bin',
       flashSizeLabel: '4MB',
-      bootParts: () => CHIP_CONFIG['ESP32'].bootParts(),
+      bootParts: () => CHIP_CONFIG['ESP32'].bootParts('4MB'),
       firmwareOffset: CHIP_CONFIG['ESP32'].firmwareOffset
     },
     {
@@ -351,15 +392,23 @@
   /**
    * For a given release + variant, figure out which chips are actually
    * available at each flash size (i.e. a matching release asset exists).
-   * Chips with a single fixed flash size (ESP32, ESP32-C3, ESP32-S2) are
-   * listed too, alongside the chips that actually offer a size choice
-   * (ESP32-S3, ESP8266) - the row itself is only shown when at least one
-   * chip in this variant has a real choice to make.
+   * A chip's VARIANTS entry is either a per-size suffix map (the chip ships
+   * multiple firmware binaries, e.g. ESP32-S3) or a single fixed suffix (one
+   * binary covers every flash size, e.g. ESP32) - in the latter case the
+   * available sizes come from CHIP_CONFIG[chip].flashSizes instead, since
+   * the same firmware asset is paired with different boot files depending
+   * on the chosen size. The row itself is only shown when at least one chip
+   * in this variant has a real choice to make.
    */
   function getFlashSizeAvailability(release, variantName) {
     const chipEntries = VARIANTS[variantName];
+
+    function fixedSizes(chip) {
+      return (CHIP_CONFIG[chip] && CHIP_CONFIG[chip].flashSizes) || [];
+    }
+
     const axisChips = Object.keys(chipEntries).filter(function (chip) {
-      return hasFlashAxis(chipEntries[chip]);
+      return hasFlashAxis(chipEntries[chip]) || fixedSizes(chip).length > 1;
     });
 
     const chipsBySize = {};
@@ -371,9 +420,8 @@
         Object.keys(entry).forEach(function (sizeId) {
           if (findAsset(release.assets, entry[sizeId])) chipsBySize[sizeId].push(chip);
         });
-      } else {
-        const fixedSize = CHIP_CONFIG[chip] && CHIP_CONFIG[chip].fixedFlashSize;
-        if (fixedSize && findAsset(release.assets, entry)) chipsBySize[fixedSize].push(chip);
+      } else if (findAsset(release.assets, entry)) {
+        fixedSizes(chip).forEach(function (sizeId) { chipsBySize[sizeId].push(chip); });
       }
     });
 
