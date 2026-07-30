@@ -870,7 +870,7 @@
   // happily flash as-is. Check once per page load, on a real asset URL, and
   // refuse to enable Install until we know real firmware bytes come back.
 
-  let proxyHealthChecked = true;
+  let proxyHealthChecked = false;
 
   /** Pick a real firmware asset URL for verifying CORS proxy behavior. */
   function getHealthCheckUrl(release) {
