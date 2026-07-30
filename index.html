@@ -128,6 +128,22 @@
       </div>
       <br>
 
+      <div id="memoryTypeRow" hidden>
+        <div class="row-label" data-i18n="memoryType">Memory:</div>
+        <div class="radio">
+          <input class="radio__input" type="radio" value="standard" name="memorytype" id="mt_standard" checked>
+          <label class="radio__label" for="mt_standard" id="mt_standard_label" data-i18n="memStandard">Standard</label>
+          <input class="radio__input" type="radio" value="wrover" name="memorytype" id="mt_wrover">
+          <label class="radio__label" for="mt_wrover" id="mt_wrover_label" data-i18n="memWrover">PSRAM (ESP32 Wrover)</label>
+          <input class="radio__input" type="radio" value="qspi" name="memorytype" id="mt_qspi">
+          <label class="radio__label" for="mt_qspi" id="mt_qspi_label" data-i18n="memQspi">PSRAM (S3 QSPI)</label>
+          <input class="radio__input" type="radio" value="opi" name="memorytype" id="mt_opi">
+          <label class="radio__label" for="mt_opi" id="mt_opi_label" data-i18n="memOpi">PSRAM (S3 OPI)</label>
+        </div>
+        <div class="row-hint" data-i18n="memoryTypeHint">Only matters if your board has PSRAM - pick the option matching its interface. Leave on Standard if unsure or your board has none.</div>
+      </div>
+      <br>
+
       <div id="layoutRow" hidden>
         <div class="row-label" data-i18n="layout">Layout:</div>
         <div class="radio">
