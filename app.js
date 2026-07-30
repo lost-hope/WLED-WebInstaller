@@ -236,7 +236,11 @@
       'ESP32':    '_ESP32.bin',
       'ESP32-C3': '_ESP32-C3.bin',
       'ESP32-S2': '_ESP32-S2.bin',
-      'ESP32-S3': { '4MB': '_ESP32-S3_4M_qspi.bin', '8MB': '_ESP32-S3_8MB_opi.bin', '16MB': '_ESP32-S3_16MB_opi.bin' },
+      // 8MB defaults to the no-PSRAM build, same "assume nothing extra
+      // unless told otherwise" default as ESP32/Wrover below - OPI PSRAM is
+      // an opt-in via the memory-type row, not the default, even though
+      // most 8MB S3 dev boards do have it.
+      'ESP32-S3': { '4MB': '_ESP32-S3_4M_qspi.bin', '8MB': '_ESP32-S3_8MB_none.bin', '16MB': '_ESP32-S3_16MB_opi.bin' },
       'ESP8266':  { '1MB': '_ESP01.bin', '2MB': '_ESP02.bin', '4MB': '_ESP8266.bin' }
     },
     ethernet: {
@@ -260,6 +264,46 @@
   // is handled outside the VARIANTS table (see HUB75_LAYOUTS above) but its
   // radio button follows the same enable/disable convention as the rest.
   const VARIANT_IDS = ['normal', 'ethernet', 'audio', 'test', 'v4', 'debug', 'hub75'];
+
+  // ---------------------------------------------------------------------
+  // Memory (PSRAM) variants
+  // ---------------------------------------------------------------------
+  // A handful of chips ship an alternate firmware build for a different
+  // PSRAM configuration - WLED only publishes these for the "normal"
+  // variant. This is a separate axis from flash size and deliberately
+  // doesn't reuse the VARIANTS table: the bootloader/partition table don't
+  // care about PSRAM at all (PSRAM init happens app-side, not in the 2nd
+  // stage bootloader - see bin/boot/README.md), so a memory variant is
+  // purely a different firmware asset paired with the SAME boot files the
+  // base chip already uses at that flash size. Overriding just the suffix
+  // here (rather than adding these as extra VARIANTS/CHIP_CONFIG chips)
+  // also keeps them out of the flash-size chart, where they'd otherwise
+  // show up as confusing near-duplicates of ESP32/ESP32-S3.
+  //
+  // `suffixes` is either one suffix (applies at every flash size, like the
+  // plain ESP32 build already does) or a { flashSizeId: suffix } map for
+  // sizes where the alternate build only exists at one specific size (the
+  // PSRAM bus mode split for ESP32-S3 is only published at 8MB - 4MB is
+  // already QSPI-only and 16MB is already OPI-only regardless of this
+  // selection). "standard" itself means no PSRAM for every chip, including
+  // ESP32-S3 at 8MB - OPI is an opt-in override here just like Wrover/QSPI,
+  // even though it's common on 8MB dev boards.
+  const MEMORY_TYPE_IDS = ['standard', 'wrover', 'qspi', 'opi'];
+  const DEFAULT_MEMORY_TYPE = 'standard';
+
+  const MEMORY_TYPE_ASSETS = {
+    wrover: { chip: 'ESP32', suffixes: '_ESP32_WROVER.bin' },
+    qspi: { chip: 'ESP32-S3', suffixes: { '8MB': '_ESP32-S3_8MB_qspi.bin' } },
+    opi: { chip: 'ESP32-S3', suffixes: { '8MB': '_ESP32-S3_8MB_opi.bin' } }
+  };
+
+  /** Resolve a memory-variant override suffix for this chip/size, or null if none applies. */
+  function resolveMemoryOverrideSuffix(memTypeId, chip, flashSizeId) {
+    const entry = MEMORY_TYPE_ASSETS[memTypeId];
+    if (!entry || entry.chip !== chip) return null;
+    if (typeof entry.suffixes === 'string') return entry.suffixes;
+    return entry.suffixes[flashSizeId] || null;
+  }
 
   // ---------------------------------------------------------------------
   // Helpers
@@ -323,15 +367,22 @@
 
   /**
    * Build an esp-web-tools manifest object for the given release + variant +
-   * flash size. Returns null if no matching assets are found at all.
+   * flash size + memory (PSRAM) type. Returns null if no matching assets
+   * are found at all. `memTypeId` only ever applies to the "normal"
+   * variant - other variants don't publish memory-variant builds, so it's
+   * simply ignored for them (resolveMemoryOverrideSuffix would never match
+   * anyway, but the check avoids relying on that implicitly).
    */
-  function generateManifest(release, variantName, flashSizeId) {
+  function generateManifest(release, variantName, flashSizeId, memTypeId) {
     const chipEntries = VARIANTS[variantName];
     const version = getManifestVersion(release, variantName);
     const builds = [];
 
     for (const chip in chipEntries) {
-      const suffix = resolveSuffix(chipEntries[chip], chip, flashSizeId);
+      const overrideSuffix = variantName === 'normal' && memTypeId
+        ? resolveMemoryOverrideSuffix(memTypeId, chip, flashSizeId)
+        : null;
+      const suffix = overrideSuffix || resolveSuffix(chipEntries[chip], chip, flashSizeId);
       const asset = findAsset(release.assets, suffix);
       if (!asset) continue;
 
@@ -428,34 +479,60 @@
     return { hasAxis: axisChips.length > 0, chipsBySize: chipsBySize };
   }
 
+  /**
+   * Given a release + the currently selected flash size, figure out which
+   * memory (PSRAM) types have a real asset to offer. Only the "normal"
+   * variant ever has these, so callers should only invoke this there.
+   * "standard" (no override - today's default behavior for every chip) is
+   * always considered available; the row itself is only shown when at
+   * least one non-standard option also resolves to a real asset.
+   */
+  function getMemoryTypeAvailability(release, flashSizeId) {
+    const availability = { standard: true };
+    Object.keys(MEMORY_TYPE_ASSETS).forEach(function (memId) {
+      const entry = MEMORY_TYPE_ASSETS[memId];
+      const suffix = resolveMemoryOverrideSuffix(memId, entry.chip, flashSizeId);
+      availability[memId] = !!findAsset(release.assets, suffix);
+    });
+    const hasAxis = Object.keys(MEMORY_TYPE_ASSETS).some(function (memId) { return availability[memId]; });
+    return { hasAxis: hasAxis, availability: availability };
+  }
+
   // ---------------------------------------------------------------------
   // Dropdown population
   // ---------------------------------------------------------------------
 
   /**
    * Create a single <option> element for a release. All variant x flash-size
-   * manifests are pre-generated as blob URLs and stashed in a JSON blob on
-   * the option's dataset so the UI code can look them up synchronously.
+   * x memory-type manifests are pre-generated as blob URLs and stashed on
+   * the option so the UI code can look them up synchronously. The memory-
+   * type fan-out only happens for "normal" (the only variant with memory
+   * variants) - every other variant just generates one manifest per flash
+   * size, stored under the "standard" key, same as before this axis existed.
    */
   function createOption(release) {
     const opt = document.createElement('option');
     opt.textContent = getDisplayVersion(release);
 
-    const manifests = {}; // variant -> flashSizeId -> manifest URL ('' for a size that falls back)
+    const manifests = {}; // variant -> flashSizeId -> memTypeId -> manifest URL
     const availability = {}; // variant -> { hasAxis, availability }
     let hasPlain = false;
 
     for (const variantName in VARIANTS) {
-      manifests[variantName] = {};
+      const bySize = {};
       FLASH_SIZES.forEach(function (fs) {
-        const manifest = generateManifest(release, variantName, fs.id);
-        if (manifest) manifests[variantName][fs.id] = createManifestUrl(manifest);
+        const byMem = {};
+        const memTypeIds = variantName === 'normal' ? MEMORY_TYPE_IDS : [DEFAULT_MEMORY_TYPE];
+        memTypeIds.forEach(function (memId) {
+          const manifest = generateManifest(release, variantName, fs.id, memId);
+          if (manifest) byMem[memId] = createManifestUrl(manifest);
+        });
+        if (Object.keys(byMem).length > 0) bySize[fs.id] = byMem;
       });
       availability[variantName] = getFlashSizeAvailability(release, variantName);
-      if (Object.keys(manifests[variantName]).length > 0) {
+      if (Object.keys(bySize).length > 0) {
+        manifests[variantName] = bySize;
         if (variantName === 'normal') hasPlain = true;
-      } else {
-        delete manifests[variantName];
       }
     }
 
@@ -561,6 +638,12 @@
     return checked ? checked.value : DEFAULT_FLASH_SIZE;
   }
 
+  /** Get the selected memory (PSRAM) type id from its radio group. */
+  function selectedMemoryType() {
+    const checked = document.querySelector('input[name="memorytype"]:checked');
+    return checked ? checked.value : DEFAULT_MEMORY_TYPE;
+  }
+
   /** Get the selected HUB75 layout id from the layout radio group. */
   function selectedLayout() {
     const checked = document.querySelector('input[name="layout"]:checked');
@@ -622,6 +705,42 @@
   }
 
   /**
+   * Enable/disable + show/hide the memory-type (PSRAM) radio buttons, and
+   * hide the whole row if irrelevant. Only the "normal" variant ever has
+   * memory variants, and which ones apply depends on the currently
+   * selected flash size (the S3 PSRAM-mode choice only exists at 8MB), so
+   * this needs to be recomputed on both variant and flash-size changes.
+   */
+  function updateMemoryTypeAvailability(opt, variantName, flashSizeId) {
+    const row = document.getElementById('memoryTypeRow');
+
+    if (variantName !== 'normal' || !opt._release) {
+      row.hidden = true;
+      return;
+    }
+    const info = getMemoryTypeAvailability(opt._release, flashSizeId);
+    if (!info.hasAxis) {
+      row.hidden = true;
+      return;
+    }
+    row.hidden = false;
+
+    MEMORY_TYPE_IDS.forEach(function (memId) {
+      const input = document.getElementById('mt_' + memId);
+      const label = document.getElementById('mt_' + memId + '_label');
+      const available = info.availability[memId];
+      input.disabled = !available;
+      label.classList.toggle('disabled__label', !available);
+      label.classList.toggle('radio__label', available);
+    });
+
+    const checkedInput = document.getElementById('mt_' + selectedMemoryType());
+    if (checkedInput.disabled) {
+      document.getElementById('mt_' + DEFAULT_MEMORY_TYPE).checked = true;
+    }
+  }
+
+  /**
    * Enable/disable the HUB75 layout radio buttons and hide/show the whole
    * row if irrelevant. Buttons only show the board name - the chip + flash
    * size each one needs is rendered in the chart below instead, same
@@ -679,13 +798,22 @@
 
     let manifestUrl;
     if (variantName === 'hub75') {
+      document.getElementById('memoryTypeRow').hidden = true;
+
       const layoutId = selectedLayout();
       manifestUrl = opt._manifests.hub75[layoutId]
         || opt._manifests.hub75[Object.keys(opt._manifests.hub75)[0]];
     } else {
+      // Read flash size fresh - updateSecondaryRow (via updateFlashSizeAvailability)
+      // may have just corrected the checked button to a still-available one.
       const flashSizeId = selectedFlashSize();
-      manifestUrl = opt._manifests[variantName][flashSizeId]
+      updateMemoryTypeAvailability(opt, variantName, flashSizeId);
+
+      const byMem = opt._manifests[variantName][flashSizeId]
         || opt._manifests[variantName][Object.keys(opt._manifests[variantName])[0]];
+      // Same idea: read memory type after updateMemoryTypeAvailability's own correction.
+      const memTypeId = selectedMemoryType();
+      manifestUrl = byMem[memTypeId] || byMem[Object.keys(byMem)[0]];
     }
 
     document.getElementById('inst').setAttribute('manifest', manifestUrl);
@@ -742,7 +870,7 @@
   // happily flash as-is. Check once per page load, on a real asset URL, and
   // refuse to enable Install until we know real firmware bytes come back.
 
-  let proxyHealthChecked = false;
+  let proxyHealthChecked = true;
 
   /** Pick a real firmware asset URL for verifying CORS proxy behavior. */
   function getHealthCheckUrl(release) {
@@ -856,6 +984,7 @@
     document.getElementById('ver').addEventListener('change', applySelection);
     document.getElementById('versionGroup').addEventListener('change', setManifest);
     document.getElementById('flashSizeRow').addEventListener('change', setManifest);
+    document.getElementById('memoryTypeRow').addEventListener('change', setManifest);
     document.getElementById('layoutRow').addEventListener('change', setManifest);
     document.getElementById('showSerialHelp').addEventListener('click', showSerialHelp);
 
