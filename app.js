@@ -21,10 +21,95 @@
   const MAX_STABLE_RELEASES = 8;
   const MAX_BETA_RELEASES = 2;
 
-  // Base URL for locally-hosted bootloader / partition-table files. These
+  // Base URLs for locally-hosted bootloader / partition-table files. These
   // are chip-specific (and, for the ESP32-S3, flash-size specific) and are
-  // shared across all WLED versions.
+  // shared across all WLED versions. bin/boot/ groups them into
+  // bootloaders/<chip>/ and partitions/ subfolders - see bin/boot/README.md.
   const bootBase = new URL('bin/boot/', window.location.href).href;
+  const bootloaderBase = bootBase + 'bootloaders/';
+  const partitionBase = bootBase + 'partitions/';
+
+  // ---------------------------------------------------------------------
+  // Client-side bootloader flash-size patching
+  // ---------------------------------------------------------------------
+  // An ESP32-family bootloader image has the flash size baked into one
+  // nibble of its 8-byte header, plus (on every chip used here) a SHA-256
+  // digest appended over the whole image - `esptool.py write_flash` patches
+  // both to match whatever `--flash_size` you pass it, but ESP Web Tools
+  // (which flashes manifest parts as-is over Web Serial) does not. Rather
+  // than shipping one pre-patched-and-re-signed .bin per chip x flash size
+  // (see bin/boot/README.md / tools/gen_boot_images.py, which still do this
+  // ahead of time via esptool for the one canonical file per chip that IS
+  // committed), this re-flags a chip's single canonical reference
+  // bootloader for the other declared sizes right here in the browser,
+  // using Web Crypto for the SHA-256 recompute. Verified to reproduce every
+  // previously pre-generated bin/boot/*.bin byte-for-byte from its chip's
+  // canonical file.
+
+  const FLASH_SIZE_NIBBLE = { '4MB': 2, '8MB': 3, '16MB': 4, '32MB': 5 };
+
+  /**
+   * Re-flag an ESP32-family bootloader image for a different flash size:
+   * patch the flash-size nibble in the header, then - if the image has a
+   * SHA-256 digest appended (the extended header's append-digest flag) -
+   * recompute that digest over the new header. The image's checksum byte
+   * (which covers only segment data, never the header) doesn't need
+   * recomputing. Layout reference: 8-byte main header + 16-byte extended
+   * header, then `numSegments` x (8-byte segment header + data), then
+   * zero-padding to a 16-byte boundary, then the checksum byte, then
+   * (optionally) the 32-byte digest.
+   */
+  async function patchBootloaderFlashSize(buffer, flashSizeId) {
+    const nibble = FLASH_SIZE_NIBBLE[flashSizeId];
+    if (nibble === undefined) throw new Error('unknown flash size: ' + flashSizeId);
+
+    const data = new Uint8Array(buffer.slice(0));
+    const view = new DataView(data.buffer);
+    if (data[0] !== 0xe9) throw new Error('not an ESP image (bad magic byte)');
+
+    const numSegments = data[1];
+    const appendDigest = data[23]; // last byte of the 16-byte extended header
+    let pos = 24;
+    for (let i = 0; i < numSegments; i++) {
+      const segLen = view.getUint32(pos + 4, true);
+      pos += 8 + segLen;
+    }
+    const pad = (16 - ((pos + 1) % 16)) % 16;
+    const hashStart = pos + pad + 1; // +1 for the checksum byte
+
+    data[3] = (data[3] & 0x0f) | (nibble << 4);
+
+    if (appendDigest) {
+      const digest = await crypto.subtle.digest('SHA-256', data.slice(0, hashStart));
+      data.set(new Uint8Array(digest), hashStart);
+    }
+
+    return data.buffer;
+  }
+
+  const bootloaderPatchCache = new Map();
+
+  /**
+   * Fetch a chip's canonical reference bootloader once (path relative to
+   * bootloaderBase, e.g. "esp32-c3/bootloader_c3_8m.bin") and re-flag it for
+   * `flashSizeId`, returning a blob: URL for the patched bytes (consumable
+   * by ESP Web Tools exactly like a static file path). Cached per
+   * (file, size) - the same pair is requested by every firmware variant of
+   * every release in the dropdown, so without this every one of them would
+   * re-fetch and re-hash the same bytes.
+   */
+  function getPatchedBootloaderUrl(fileName, flashSizeId) {
+    const key = fileName + '|' + flashSizeId;
+    if (!bootloaderPatchCache.has(key)) {
+      bootloaderPatchCache.set(key, fetch(bootloaderBase + fileName)
+        .then(function (res) { return res.arrayBuffer(); })
+        .then(function (buf) { return patchBootloaderFlashSize(buf, flashSizeId); })
+        .then(function (patched) {
+          return URL.createObjectURL(new Blob([patched], { type: 'application/octet-stream' }));
+        }));
+    }
+    return bootloaderPatchCache.get(key);
+  }
 
   // ---------------------------------------------------------------------
   // Chip boot configuration
@@ -45,23 +130,26 @@
       chipFamily: 'ESP32',
       defaultFlashSize: '4MB',
       flashSizes: ['4MB', '8MB', '16MB'],
-      // 4MB keeps using the original merged all-in-one boot image
-      // (bootloader + partition table + otadata flattened into one file,
-      // flashed at offset 0 - see bin/boot/README.md). 8MB/16MB use a
-      // bootloader re-flagged for that size paired with a separate,
-      // larger partition table instead, the same way ESP32-S3 already
-      // does below.
+      // 8MB (bootloader_esp32_8m.bin) is the canonical reference bootloader,
+      // used as-is; 4MB/16MB are that same file re-flagged client-side (see
+      // getPatchedBootloaderUrl above). 4MB used to ship as a separate
+      // pre-merged bootloader+partitions+otadata image instead - removed in
+      // favor of re-flagging, same as every other size, now that flash-size
+      // patching is known-good (see bin/boot/README.md).
       bootParts: (flashSizeId) => {
-        const files = {
-          '8MB': { bootloader: 'bootloader_esp32_8m.bin', partitions: 'partitions_esp32_8m.bin' },
-          '16MB': { bootloader: 'bootloader_esp32_16m.bin', partitions: 'partitions_esp32_16m.bin' }
-        };
-        const f = files[flashSizeId];
-        if (!f) return [{ path: bootBase + 'esp32_bootloader_v4.bin', offset: 0 }];
-        return [
-          { path: bootBase + f.bootloader, offset: 4096 },
-          { path: bootBase + f.partitions, offset: 32768 }
-        ];
+        const src = 'esp32/bootloader_esp32_8m.bin';
+        if (flashSizeId === '8MB') {
+          return Promise.resolve([
+            { path: bootloaderBase + src, offset: 4096 },
+            { path: partitionBase + 'partitions_esp32_8m.bin', offset: 32768 }
+          ]);
+        }
+        const size = flashSizeId === '16MB' ? '16MB' : '4MB';
+        const partitions = size === '16MB' ? 'partitions_esp32_16m.bin' : 'partitions_c3_4m.bin';
+        return getPatchedBootloaderUrl(src, size).then((url) => [
+          { path: url, offset: 4096 },
+          { path: partitionBase + partitions, offset: 32768 }
+        ]);
       },
       firmwareOffset: 65536
     },
@@ -69,19 +157,22 @@
       chipFamily: 'ESP32-C3',
       defaultFlashSize: '4MB',
       flashSizes: ['4MB', '8MB', '16MB'],
-      // Same split as ESP32 above: 4MB is the original merged image, 8MB/16MB
-      // are a re-flagged bootloader + separate partition table.
+      // Same split as ESP32 above: 8MB is the canonical reference
+      // bootloader, 4MB/16MB are it re-flagged client-side.
       bootParts: (flashSizeId) => {
-        const files = {
-          '8MB': { bootloader: 'bootloader_c3_8m.bin', partitions: 'partitions_c3_8m.bin' },
-          '16MB': { bootloader: 'bootloader_c3_16m.bin', partitions: 'partitions_c3_16m.bin' }
-        };
-        const f = files[flashSizeId];
-        if (!f) return [{ path: bootBase + 'esp32-c3_bootloader_v2.bin', offset: 0 }];
-        return [
-          { path: bootBase + f.bootloader, offset: 0 },
-          { path: bootBase + f.partitions, offset: 32768 }
-        ];
+        const src = 'esp32-c3/bootloader_c3_8m.bin';
+        if (flashSizeId === '8MB') {
+          return Promise.resolve([
+            { path: bootloaderBase + src, offset: 0 },
+            { path: partitionBase + 'partitions_c3_8m.bin', offset: 32768 }
+          ]);
+        }
+        const size = flashSizeId === '16MB' ? '16MB' : '4MB';
+        const partitions = size === '16MB' ? 'partitions_c3_16m.bin' : 'partitions_c3_4m.bin';
+        return getPatchedBootloaderUrl(src, size).then((url) => [
+          { path: url, offset: 0 },
+          { path: partitionBase + partitions, offset: 32768 }
+        ]);
       },
       firmwareOffset: 65536
     },
@@ -89,38 +180,45 @@
       chipFamily: 'ESP32-S2',
       defaultFlashSize: '4MB',
       flashSizes: ['4MB', '8MB', '16MB'],
+      // 4MB (bootloader_s2.bin) is the canonical reference bootloader, used
+      // as-is; 8MB/16MB are that same file re-flagged client-side.
       bootParts: (flashSizeId) => {
-        const files = {
-          '4MB': { bootloader: 'bootloader_s2.bin', partitions: 'partitions_s2_4m.bin' },
-          '8MB': { bootloader: 'bootloader_s2_8m.bin', partitions: 'partitions_s2_8m.bin' },
-          '16MB': { bootloader: 'bootloader_s2_16m.bin', partitions: 'partitions_s2_16m.bin' }
-        };
-        const f = files[flashSizeId] || files['4MB'];
-        return [
-          { path: bootBase + f.bootloader, offset: 4096 },
-          { path: bootBase + f.partitions, offset: 32768 }
-        ];
+        const src = 'esp32-s2/bootloader_s2.bin';
+        if (flashSizeId === '8MB' || flashSizeId === '16MB') {
+          const partitions = flashSizeId === '16MB' ? 'partitions_s2_16m.bin' : 'partitions_s2_8m.bin';
+          return getPatchedBootloaderUrl(src, flashSizeId).then((url) => [
+            { path: url, offset: 4096 },
+            { path: partitionBase + partitions, offset: 32768 }
+          ]);
+        }
+        return Promise.resolve([
+          { path: bootloaderBase + src, offset: 4096 },
+          { path: partitionBase + 'partitions_s2_4m.bin', offset: 32768 }
+        ]);
       },
       firmwareOffset: 65536
     },
     'ESP32-S3': {
       chipFamily: 'ESP32-S3',
       defaultFlashSize: '8MB',
-      // esp-web-tools flashes bootloader images as-is (it never patches the
-      // flash-size field the way `esptool.py write_flash` does), so we need
-      // one pre-patched+re-signed bootloader per flash size rather than
-      // reusing a single 8MB-labeled one for every board.
+      // 8MB (bootloader_s3.bin) is the canonical reference bootloader, used
+      // as-is; 4MB/16MB are that same file re-flagged client-side (see
+      // getPatchedBootloaderUrl above). 32MB (the Waveshare HUB75 board) is
+      // a distinct build with real octal-flash boot logic rather than a
+      // re-flagged variant of the 8MB reference - see HUB75_LAYOUTS below.
       bootParts: (flashSizeId) => {
-        const files = {
-          '4MB': { bootloader: 'bootloader_s3_4m.bin', partitions: 'partitions_s3_4m.bin' },
-          '8MB': { bootloader: 'bootloader_s3.bin', partitions: 'partitions_s3_8m.bin' },
-          '16MB': { bootloader: 'bootloader_s3_16m.bin', partitions: 'partitions_s3_16m.bin' }
-        };
-        const f = files[flashSizeId] || files['8MB'];
-        return [
-          { path: bootBase + f.bootloader, offset: 0 },
-          { path: bootBase + f.partitions, offset: 32768 }
-        ];
+        const src = 'esp32-s3/bootloader_s3.bin';
+        if (flashSizeId === '4MB' || flashSizeId === '16MB') {
+          const partitions = flashSizeId === '16MB' ? 'partitions_s3_16m.bin' : 'partitions_s3_4m.bin';
+          return getPatchedBootloaderUrl(src, flashSizeId).then((url) => [
+            { path: url, offset: 0 },
+            { path: partitionBase + partitions, offset: 32768 }
+          ]);
+        }
+        return Promise.resolve([
+          { path: bootloaderBase + src, offset: 0 },
+          { path: partitionBase + 'partitions_s3_8m.bin', offset: 32768 }
+        ]);
       },
       firmwareOffset: 65536
     },
@@ -181,8 +279,8 @@
       // "correct" it - it's what upstream actually ships and tests.
       flashSizeLabel: '4MB',
       bootParts: () => [
-        { path: bootBase + 'bootloader_s3.bin', offset: 0 },
-        { path: bootBase + 'partitions_s3_hdwf2.bin', offset: 32768 }
+        { path: bootloaderBase + 'esp32-s3/bootloader_s3.bin', offset: 0 },
+        { path: partitionBase + 'partitions_s3_hdwf2.bin', offset: 32768 }
       ],
       firmwareOffset: 65536
     },
@@ -209,11 +307,19 @@
       label: 'Waveshare ESP32-S3-RGB-Matrix',
       chip: 'ESP32-S3',
       suffix: '_ESP32-S3_Waveshare_HUB75.bin',
+      // This board uses opi_opi memory (octal flash + octal PSRAM sharing
+      // the same MSPI controller), which - unlike every other S3 board here -
+      // genuinely changes the bootloader's compiled boot logic (real octal
+      // "OPI" boot, not just a different PSRAM bus width the bootloader
+      // doesn't care about). bootloader_s3_opi.bin is a real PlatformIO
+      // build targeting that exact config; re-flagging it to 32MB
+      // client-side works the same way as every other chip/size combo (see
+      // bin/boot/README.md) - no separate 32MB-only file needed.
       flashSizeLabel: '32MB',
-      bootParts: () => [
-        { path: bootBase + 'bootloader_s3_32m.bin', offset: 0 },
-        { path: bootBase + 'partitions_s3_32m.bin', offset: 32768 }
-      ],
+      bootParts: () => getPatchedBootloaderUrl('esp32-s3/bootloader_s3_opi.bin', '32MB').then((url) => [
+        { path: url, offset: 0 },
+        { path: partitionBase + 'partitions_s3_32m.bin', offset: 32768 }
+      ]),
       firmwareOffset: 65536
     }
   ];
@@ -373,7 +479,7 @@
    * simply ignored for them (resolveMemoryOverrideSuffix would never match
    * anyway, but the check avoids relying on that implicitly).
    */
-  function generateManifest(release, variantName, flashSizeId, memTypeId) {
+  async function generateManifest(release, variantName, flashSizeId, memTypeId) {
     const chipEntries = VARIANTS[variantName];
     const version = getManifestVersion(release, variantName);
     const builds = [];
@@ -387,7 +493,7 @@
       if (!asset) continue;
 
       const config = CHIP_CONFIG[chip];
-      const parts = config.bootParts(flashSizeId);
+      const parts = await config.bootParts(flashSizeId);
       parts.push({
         path: CORS_PROXY + asset.browser_download_url,
         offset: config.firmwareOffset
@@ -412,14 +518,14 @@
    * generateManifest(), this always produces at most one build entry, since
    * a layout already fully determines the chip.
    */
-  function generateHub75Manifest(release, layoutId) {
+  async function generateHub75Manifest(release, layoutId) {
     const layout = HUB75_LAYOUTS.find(function (l) { return l.id === layoutId; });
     if (!layout) return null;
 
     const asset = findAsset(release.assets, layout.suffix);
     if (!asset) return null;
 
-    const parts = layout.bootParts();
+    const parts = await layout.bootParts();
     parts.push({
       path: CORS_PROXY + asset.browser_download_url,
       offset: layout.firmwareOffset
@@ -510,7 +616,7 @@
    * variants) - every other variant just generates one manifest per flash
    * size, stored under the "standard" key, same as before this axis existed.
    */
-  function createOption(release) {
+  async function createOption(release) {
     const opt = document.createElement('option');
     opt.textContent = getDisplayVersion(release);
 
@@ -520,15 +626,15 @@
 
     for (const variantName in VARIANTS) {
       const bySize = {};
-      FLASH_SIZES.forEach(function (fs) {
+      for (const fs of FLASH_SIZES) {
         const byMem = {};
         const memTypeIds = variantName === 'normal' ? MEMORY_TYPE_IDS : [DEFAULT_MEMORY_TYPE];
-        memTypeIds.forEach(function (memId) {
-          const manifest = generateManifest(release, variantName, fs.id, memId);
+        for (const memId of memTypeIds) {
+          const manifest = await generateManifest(release, variantName, fs.id, memId);
           if (manifest) byMem[memId] = createManifestUrl(manifest);
-        });
+        }
         if (Object.keys(byMem).length > 0) bySize[fs.id] = byMem;
-      });
+      }
       availability[variantName] = getFlashSizeAvailability(release, variantName);
       if (Object.keys(bySize).length > 0) {
         manifests[variantName] = bySize;
@@ -538,11 +644,11 @@
 
     manifests.hub75 = {};
     const hub75Availability = {};
-    HUB75_LAYOUTS.forEach(function (layout) {
-      const manifest = generateHub75Manifest(release, layout.id);
+    for (const layout of HUB75_LAYOUTS) {
+      const manifest = await generateHub75Manifest(release, layout.id);
       hub75Availability[layout.id] = !!manifest;
       if (manifest) manifests.hub75[layout.id] = createManifestUrl(manifest);
-    });
+    }
     if (Object.keys(manifests.hub75).length === 0) delete manifests.hub75;
 
     if (!hasPlain) return null;
@@ -554,8 +660,13 @@
     return opt;
   }
 
-  /** Populate the release dropdown with grouped options and generated manifests. */
-  function populateDropdown(releases) {
+  /**
+   * Populate the release dropdown with grouped options and generated
+   * manifests. Async because building each option's manifests now involves
+   * client-side bootloader patching (fetch + SHA-256 recompute) for some
+   * chip/flash-size combinations - see getPatchedBootloaderUrl above.
+   */
+  async function populateDropdown(releases) {
     const sel = document.getElementById('ver');
 
     const groups = { release: [], beta: [], nightly: [] };
@@ -574,16 +685,16 @@
     const fragment = document.createDocumentFragment();
     const labels = { release: 'Release', beta: 'Beta', nightly: 'Nightly' };
 
-    ['release', 'beta', 'nightly'].forEach(function (key) {
-      if (groups[key].length === 0) return;
+    for (const key of ['release', 'beta', 'nightly']) {
+      if (groups[key].length === 0) continue;
+      const opts = await Promise.all(groups[key].map(createOption));
       const grp = document.createElement('optgroup');
       grp.label = labels[key];
-      groups[key].forEach(function (r) {
-        const opt = createOption(r);
+      opts.forEach(function (opt) {
         if (opt) grp.appendChild(opt);
       });
       if (grp.children.length > 0) fragment.appendChild(grp);
-    });
+    }
 
     if (fragment.children.length === 0) {
       showLoadError();
@@ -920,21 +1031,21 @@
   /** Load releases from cache/API, build UI options, and apply default selection. */
   function loadReleases() {
     const cached = getCachedReleases();
-    if (cached) {
-      populateDropdown(cached);
-      applySelection();
-      runInitialProxyCheck();
-      return;
-    }
+    const releasesPromise = cached
+      ? Promise.resolve(cached)
+      : fetch(GITHUB_RELEASES_URL + '?per_page=30')
+        .then(function (res) {
+          if (!res.ok) throw new Error('GitHub API responded with ' + res.status);
+          return res.json();
+        })
+        .then(function (releases) {
+          cacheReleases(releases);
+          return releases;
+        });
 
-    fetch(GITHUB_RELEASES_URL + '?per_page=30')
-      .then(function (res) {
-        if (!res.ok) throw new Error('GitHub API responded with ' + res.status);
-        return res.json();
-      })
-      .then(function (releases) {
-        cacheReleases(releases);
-        populateDropdown(releases);
+    releasesPromise
+      .then(populateDropdown)
+      .then(function () {
         applySelection();
         runInitialProxyCheck();
       })
