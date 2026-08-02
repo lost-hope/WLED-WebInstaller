@@ -144,6 +144,32 @@
       </div>
       <br>
 
+      <div id="flashModeRow" hidden>
+        <div class="row-label" data-i18n="flashMode">Flash mode:</div>
+        <div class="radio">
+          <input class="radio__input" type="radio" value="default" name="flashmode" id="fm_default" checked>
+          <label class="radio__label" for="fm_default" id="fm_default_label" data-i18n="fmDefault">Default</label>
+          <input class="radio__input" type="radio" value="dio" name="flashmode" id="fm_dio">
+          <label class="radio__label" for="fm_dio" id="fm_dio_label" data-i18n="fmDio">DIO</label>
+          <input class="radio__input" type="radio" value="qio" name="flashmode" id="fm_qio">
+          <label class="radio__label" for="fm_qio" id="fm_qio_label" data-i18n="fmQio">QIO</label>
+        </div>
+        <table class="flash-size-chart" id="flashModeChart">
+          <thead>
+            <tr>
+              <th data-i18n="flashModeChartMode">Mode</th>
+              <th data-i18n="flashModeChartChips">Applies to</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr id="fmChart_dio"><td>DIO</td><td id="fmChart_dio_chips"></td></tr>
+            <tr id="fmChart_qio"><td>QIO</td><td id="fmChart_qio_chips"></td></tr>
+          </tbody>
+        </table>
+        <div class="row-hint" data-i18n="flashModeHint">Default matches the flash mode this release's standard build already uses for each chip - safest choice, and required to match an existing bootloader when updating in place. DIO/QIO force that mode where a matching release build exists - see the chart above for which chip(s) that currently applies to.</div>
+      </div>
+      <br>
+
       <div id="layoutRow" hidden>
         <div class="row-label" data-i18n="layout">Layout:</div>
         <div class="radio">

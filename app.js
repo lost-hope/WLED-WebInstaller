@@ -135,9 +135,11 @@
       // getPatchedBootloaderUrl above). 4MB used to ship as a separate
       // pre-merged bootloader+partitions+otadata image instead - removed in
       // favor of re-flagging, same as every other size, now that flash-size
-      // patching is known-good (see bin/boot/README.md).
-      bootParts: (flashSizeId) => {
-        const src = 'esp32/bootloader_esp32_8m.bin';
+      // patching is known-good (see bin/boot/README.md). flashModeId picks
+      // between DIO (default) and QIO bootloader files - see
+      // resolveFlashMode / FLASH_MODE_BOOTLOADERS above.
+      bootParts: (flashSizeId, flashModeId) => {
+        const src = FLASH_MODE_BOOTLOADERS['ESP32'][resolveFlashMode('ESP32', flashModeId)];
         if (flashSizeId === '8MB') {
           return Promise.resolve([
             { path: bootloaderBase + src, offset: 4096 },
@@ -158,9 +160,14 @@
       defaultFlashSize: '4MB',
       flashSizes: ['4MB', '8MB', '16MB'],
       // Same split as ESP32 above: 8MB is the canonical reference
-      // bootloader, 4MB/16MB are it re-flagged client-side.
-      bootParts: (flashSizeId) => {
-        const src = 'esp32-c3/bootloader_c3_8m.bin';
+      // bootloader, 4MB/16MB are it re-flagged client-side. ESP32-C3 is
+      // also the one chip with a real flash-mode override (see
+      // FLASH_MODE_ASSETS above) - flashModeId picks between the DIO
+      // (default) and QIO bootloader builds, both real PlatformIO builds
+      // rather than anything patched, since flash mode is compiled-in
+      // bootloader logic, not a header field (see bin/boot/README.md).
+      bootParts: (flashSizeId, flashModeId) => {
+        const src = FLASH_MODE_BOOTLOADERS['ESP32-C3'][resolveFlashMode('ESP32-C3', flashModeId)];
         if (flashSizeId === '8MB') {
           return Promise.resolve([
             { path: bootloaderBase + src, offset: 0 },
@@ -180,10 +187,14 @@
       chipFamily: 'ESP32-S2',
       defaultFlashSize: '4MB',
       flashSizes: ['4MB', '8MB', '16MB'],
-      // 4MB (bootloader_s2.bin) is the canonical reference bootloader, used
-      // as-is; 8MB/16MB are that same file re-flagged client-side.
-      bootParts: (flashSizeId) => {
-        const src = 'esp32-s2/bootloader_s2.bin';
+      // QIO (bootloader_s2.bin) is the canonical reference bootloader, used
+      // as-is; DIO (bootloader_s2_dio.bin) is a real alternate PlatformIO
+      // build - both are already flagged for 4MB natively (no re-flagging
+      // needed at that size regardless of mode), 8MB/16MB re-flag whichever
+      // mode was resolved. See resolveFlashMode / FLASH_MODE_BOOTLOADERS
+      // above.
+      bootParts: (flashSizeId, flashModeId) => {
+        const src = FLASH_MODE_BOOTLOADERS['ESP32-S2'][resolveFlashMode('ESP32-S2', flashModeId)];
         if (flashSizeId === '8MB' || flashSizeId === '16MB') {
           const partitions = flashSizeId === '16MB' ? 'partitions_s2_16m.bin' : 'partitions_s2_8m.bin';
           return getPatchedBootloaderUrl(src, flashSizeId).then((url) => [
@@ -201,13 +212,16 @@
     'ESP32-S3': {
       chipFamily: 'ESP32-S3',
       defaultFlashSize: '8MB',
-      // 8MB (bootloader_s3.bin) is the canonical reference bootloader, used
-      // as-is; 4MB/16MB are that same file re-flagged client-side (see
-      // getPatchedBootloaderUrl above). 32MB (the Waveshare HUB75 board) is
-      // a distinct build with real octal-flash boot logic rather than a
-      // re-flagged variant of the 8MB reference - see HUB75_LAYOUTS below.
-      bootParts: (flashSizeId) => {
-        const src = 'esp32-s3/bootloader_s3.bin';
+      // 8MB (bootloader_s3.bin, QIO) is the canonical reference bootloader,
+      // used as-is; 4MB/16MB are that same file re-flagged client-side (see
+      // getPatchedBootloaderUrl above). No normal-variant release asset
+      // needs OPI mode, so resolveFlashMode never actually picks anything
+      // but QIO here - the OPI bootloader (bootloader_s3_opi.bin) is real
+      // and committed, but only wired into the Waveshare HUB75 layout
+      // below, the one place a matching firmware asset exists for it (see
+      // bin/boot/README.md's "Flash mode" section).
+      bootParts: (flashSizeId, flashModeId) => {
+        const src = FLASH_MODE_BOOTLOADERS['ESP32-S3'][resolveFlashMode('ESP32-S3', flashModeId)];
         if (flashSizeId === '4MB' || flashSizeId === '16MB') {
           const partitions = flashSizeId === '16MB' ? 'partitions_s3_16m.bin' : 'partitions_s3_4m.bin';
           return getPatchedBootloaderUrl(src, flashSizeId).then((url) => [
@@ -314,7 +328,8 @@
       // doesn't care about). bootloader_s3_opi.bin is a real PlatformIO
       // build targeting that exact config; re-flagging it to 32MB
       // client-side works the same way as every other chip/size combo (see
-      // bin/boot/README.md) - no separate 32MB-only file needed.
+      // bin/boot/README.md's "Flash mode" section) - no separate 32MB-only
+      // file needed anymore.
       flashSizeLabel: '32MB',
       bootParts: () => getPatchedBootloaderUrl('esp32-s3/bootloader_s3_opi.bin', '32MB').then((url) => [
         { path: url, offset: 0 },
@@ -412,6 +427,82 @@
   }
 
   // ---------------------------------------------------------------------
+  // Flash-mode overrides
+  // ---------------------------------------------------------------------
+  // Unlike flash size (a header nibble this repo can patch - see
+  // getPatchedBootloaderUrl above), flash mode is baked into the
+  // bootloader's *compiled* SPI-flash-init logic, so every mode needs its
+  // own real PlatformIO build - there's nothing to compute client-side
+  // here, just a different committed bootloader file to pick. Every chip
+  // has its own native default mode (whatever its normal WLED release
+  // asset is actually built with); ESP32-C3 additionally has a real
+  // *override* - a genuinely separate release asset WLED publishes for a
+  // different mode. See bin/boot/README.md's "Flash mode" section for the
+  // full picture, including modes that exist as committed bootloader
+  // files but have no matching WLED firmware (ESP32-S3's OPI file is one -
+  // it's wired directly into the Waveshare HUB75 layout instead of this
+  // general axis, since that's the only place a matching firmware asset
+  // exists for it).
+
+  const FLASH_MODES = [
+    { id: 'dio', label: 'DIO' },
+    { id: 'qio', label: 'QIO' }
+  ];
+  const FLASH_MODE_IDS = ['default', 'dio', 'qio'];
+  const DEFAULT_FLASH_MODE = 'default';
+
+  // Each chip's own native mode - what "Default" resolves to, and what a
+  // chip falls back to when the globally selected mode isn't one WLED
+  // actually publishes a matching firmware asset for (see resolveFlashMode
+  // below). ESP8266 has no entry - it has no flash-mode axis at all.
+  const CHIP_DEFAULT_FLASH_MODE = {
+    'ESP32': 'dio',
+    'ESP32-C3': 'dio',
+    'ESP32-S2': 'qio',
+    'ESP32-S3': 'qio'
+  };
+
+  // Bootloader files per chip x mode (see bin/boot/README.md's "Flash
+  // mode" section for how each was built and verified). Includes modes
+  // with no matching WLED firmware asset, committed for completeness -
+  // resolveFlashMode() below is what actually gates which ones this app
+  // will ever request, so an unpaired file here is inert, not a risk.
+  const FLASH_MODE_BOOTLOADERS = {
+    'ESP32':    { dio: 'esp32/bootloader_esp32_8m.bin', qio: 'esp32/bootloader_esp32_8m_qio.bin' },
+    'ESP32-C3': { dio: 'esp32-c3/bootloader_c3_8m.bin', qio: 'esp32-c3/bootloader_c3_8m_qio.bin' },
+    'ESP32-S2': { qio: 'esp32-s2/bootloader_s2.bin', dio: 'esp32-s2/bootloader_s2_dio.bin' },
+    'ESP32-S3': { qio: 'esp32-s3/bootloader_s3.bin', opi: 'esp32-s3/bootloader_s3_opi.bin' }
+  };
+
+  // Real firmware-asset overrides - ONLY (chip, mode) pairs WLED actually
+  // publishes as a separate release binary for. Everything else falls
+  // back to the chip's own default mode, for both the firmware suffix and
+  // the bootloader file (resolveFlashMode is the single source of truth
+  // for both, so the two can never end up mismatched).
+  const FLASH_MODE_ASSETS = {
+    qio: { chip: 'ESP32-C3', suffix: '_ESP32-C3-QIO.bin' }
+  };
+
+  /**
+   * Resolve the effective flash mode for a chip given the globally
+   * selected mode: the selection itself if it's this chip's own native
+   * mode, or a real WLED-published override for it - otherwise this
+   * chip's own default. Returns null for chips with no flash-mode axis
+   * (ESP8266). Used for BOTH the firmware suffix and the bootloader file
+   * (see generateManifest / CHIP_CONFIG[*].bootParts), so a mismatch
+   * between the two - the exact bug this axis exists to avoid - is
+   * structurally impossible.
+   */
+  function resolveFlashMode(chip, flashModeId) {
+    const defaultMode = CHIP_DEFAULT_FLASH_MODE[chip];
+    if (!defaultMode) return null;
+    if (flashModeId === defaultMode) return defaultMode;
+    const entry = FLASH_MODE_ASSETS[flashModeId];
+    if (entry && entry.chip === chip) return flashModeId;
+    return defaultMode;
+  }
+
+  // ---------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------
 
@@ -473,13 +564,16 @@
 
   /**
    * Build an esp-web-tools manifest object for the given release + variant +
-   * flash size + memory (PSRAM) type. Returns null if no matching assets
-   * are found at all. `memTypeId` only ever applies to the "normal"
-   * variant - other variants don't publish memory-variant builds, so it's
-   * simply ignored for them (resolveMemoryOverrideSuffix would never match
-   * anyway, but the check avoids relying on that implicitly).
+   * flash size + memory (PSRAM) type + flash mode. Returns null if no
+   * matching assets are found at all. `memTypeId` only ever applies to the
+   * "normal" variant - other variants don't publish memory-variant builds,
+   * so it's simply ignored for them (resolveMemoryOverrideSuffix would
+   * never match anyway, but the check avoids relying on that implicitly).
+   * `flashModeId` is resolved per-chip via resolveFlashMode() regardless of
+   * variant - outside "normal" it's forced to each chip's own default mode,
+   * since no other variant publishes a flash-mode override.
    */
-  async function generateManifest(release, variantName, flashSizeId, memTypeId) {
+  async function generateManifest(release, variantName, flashSizeId, memTypeId, flashModeId) {
     const chipEntries = VARIANTS[variantName];
     const version = getManifestVersion(release, variantName);
     const builds = [];
@@ -488,12 +582,16 @@
       const overrideSuffix = variantName === 'normal' && memTypeId
         ? resolveMemoryOverrideSuffix(memTypeId, chip, flashSizeId)
         : null;
-      const suffix = overrideSuffix || resolveSuffix(chipEntries[chip], chip, flashSizeId);
+      const flashMode = variantName === 'normal' ? resolveFlashMode(chip, flashModeId) : CHIP_DEFAULT_FLASH_MODE[chip];
+      const flashModeSuffix = flashMode && flashMode !== CHIP_DEFAULT_FLASH_MODE[chip]
+        ? FLASH_MODE_ASSETS[flashMode].suffix
+        : null;
+      const suffix = overrideSuffix || flashModeSuffix || resolveSuffix(chipEntries[chip], chip, flashSizeId);
       const asset = findAsset(release.assets, suffix);
       if (!asset) continue;
 
       const config = CHIP_CONFIG[chip];
-      const parts = await config.bootParts(flashSizeId);
+      const parts = await config.bootParts(flashSizeId, flashMode);
       parts.push({
         path: CORS_PROXY + asset.browser_download_url,
         offset: config.firmwareOffset
@@ -604,36 +702,84 @@
     return { hasAxis: hasAxis, availability: availability };
   }
 
+  /**
+   * For a given release + variant + the currently selected flash size,
+   * figure out which chips are actually available at each flash mode -
+   * mirrors getFlashSizeAvailability's shape/pattern exactly (same idea:
+   * a mode "applies to" a chip either because it's that chip's own native
+   * mode with a real matching asset, or because WLED publishes a genuine
+   * override for it - see FLASH_MODE_ASSETS). Depends on flashSizeId
+   * because a chip's own suffix can vary by size (e.g. ESP32-S3's
+   * per-size map), same reason getMemoryTypeAvailability takes it. The row
+   * itself is only shown when at least one chip has a real override to
+   * offer - a chip with only its own single native mode isn't "an axis".
+   */
+  function getFlashModeAvailability(release, variantName, flashSizeId) {
+    const chipEntries = VARIANTS[variantName];
+
+    const chipsByMode = {};
+    FLASH_MODES.forEach(function (m) { chipsByMode[m.id] = []; });
+
+    Object.keys(chipEntries).forEach(function (chip) {
+      const defaultMode = CHIP_DEFAULT_FLASH_MODE[chip];
+      if (!defaultMode || !chipsByMode[defaultMode]) return;
+      const baseSuffix = resolveSuffix(chipEntries[chip], chip, flashSizeId);
+      if (findAsset(release.assets, baseSuffix)) chipsByMode[defaultMode].push(chip);
+    });
+
+    Object.keys(FLASH_MODE_ASSETS).forEach(function (modeId) {
+      if (!chipsByMode[modeId]) return;
+      const entry = FLASH_MODE_ASSETS[modeId];
+      if (!chipEntries[entry.chip]) return;
+      if (findAsset(release.assets, entry.suffix) && chipsByMode[modeId].indexOf(entry.chip) === -1) {
+        chipsByMode[modeId].push(entry.chip);
+      }
+    });
+
+    const hasAxis = Object.keys(FLASH_MODE_ASSETS).some(function (modeId) {
+      return !!chipEntries[FLASH_MODE_ASSETS[modeId].chip];
+    });
+    return { hasAxis: hasAxis, chipsByMode: chipsByMode };
+  }
+
   // ---------------------------------------------------------------------
   // Dropdown population
   // ---------------------------------------------------------------------
 
   /**
    * Create a single <option> element for a release. All variant x flash-size
-   * x memory-type manifests are pre-generated as blob URLs and stashed on
-   * the option so the UI code can look them up synchronously. The memory-
-   * type fan-out only happens for "normal" (the only variant with memory
-   * variants) - every other variant just generates one manifest per flash
-   * size, stored under the "standard" key, same as before this axis existed.
+   * x memory-type x flash-mode manifests are pre-generated as blob URLs and
+   * stashed on the option so the UI code can look them up synchronously.
+   * The memory-type/flash-mode fan-out only happens for "normal" (the only
+   * variant with these alternate builds) - every other variant just
+   * generates one manifest per flash size, stored under the
+   * "standard|default" key, same as before these axes existed. Memory type
+   * and flash mode are independent per-chip overrides within the same
+   * manifest (see generateManifest), so every combination of the two needs
+   * its own manifest - stored under a composite "memTypeId|flashModeId" key
+   * rather than a third nesting level.
    */
   async function createOption(release) {
     const opt = document.createElement('option');
     opt.textContent = getDisplayVersion(release);
 
-    const manifests = {}; // variant -> flashSizeId -> memTypeId -> manifest URL
+    const manifests = {}; // variant -> flashSizeId -> "memTypeId|flashModeId" -> manifest URL
     const availability = {}; // variant -> { hasAxis, availability }
     let hasPlain = false;
 
     for (const variantName in VARIANTS) {
       const bySize = {};
       for (const fs of FLASH_SIZES) {
-        const byMem = {};
+        const byKey = {};
         const memTypeIds = variantName === 'normal' ? MEMORY_TYPE_IDS : [DEFAULT_MEMORY_TYPE];
+        const flashModeIds = variantName === 'normal' ? FLASH_MODE_IDS : [DEFAULT_FLASH_MODE];
         for (const memId of memTypeIds) {
-          const manifest = await generateManifest(release, variantName, fs.id, memId);
-          if (manifest) byMem[memId] = createManifestUrl(manifest);
+          for (const modeId of flashModeIds) {
+            const manifest = await generateManifest(release, variantName, fs.id, memId, modeId);
+            if (manifest) byKey[memId + '|' + modeId] = createManifestUrl(manifest);
+          }
         }
-        if (Object.keys(byMem).length > 0) bySize[fs.id] = byMem;
+        if (Object.keys(byKey).length > 0) bySize[fs.id] = byKey;
       }
       availability[variantName] = getFlashSizeAvailability(release, variantName);
       if (Object.keys(bySize).length > 0) {
@@ -755,6 +901,12 @@
     return checked ? checked.value : DEFAULT_MEMORY_TYPE;
   }
 
+  /** Get the selected flash-mode id from its radio group. */
+  function selectedFlashMode() {
+    const checked = document.querySelector('input[name="flashmode"]:checked');
+    return checked ? checked.value : DEFAULT_FLASH_MODE;
+  }
+
   /** Get the selected HUB75 layout id from the layout radio group. */
   function selectedLayout() {
     const checked = document.querySelector('input[name="layout"]:checked');
@@ -852,6 +1004,50 @@
   }
 
   /**
+   * Enable/disable + show/hide the flash-mode radio buttons (and their
+   * chart), and hide the whole row if irrelevant. Only the "normal"
+   * variant ever has flash-mode overrides, and - like memory type - a
+   * chip's own suffix can vary by flash size, so this needs recomputing on
+   * both variant and flash-size changes. "Default" is never disabled here
+   * (it always resolves validly per chip - see resolveFlashMode); only the
+   * concrete DIO/QIO buttons and chart rows reflect real availability,
+   * same treatment as the flash-size buttons/chart.
+   */
+  function updateFlashModeAvailability(opt, variantName, flashSizeId) {
+    const row = document.getElementById('flashModeRow');
+
+    if (variantName !== 'normal' || !opt._release) {
+      row.hidden = true;
+      return;
+    }
+    const info = getFlashModeAvailability(opt._release, variantName, flashSizeId);
+    if (!info.hasAxis) {
+      row.hidden = true;
+      return;
+    }
+    row.hidden = false;
+
+    FLASH_MODES.forEach(function (mode) {
+      const input = document.getElementById('fm_' + mode.id);
+      const label = document.getElementById('fm_' + mode.id + '_label');
+      const chartRow = document.getElementById('fmChart_' + mode.id);
+      const chartChips = document.getElementById('fmChart_' + mode.id + '_chips');
+      const chips = info.chipsByMode[mode.id];
+      const available = chips.length > 0;
+      input.disabled = !available;
+      label.classList.toggle('disabled__label', !available);
+      label.classList.toggle('radio__label', available);
+      chartRow.hidden = !available;
+      chartChips.textContent = chips.join(', ');
+    });
+
+    const checkedInput = document.getElementById('fm_' + selectedFlashMode());
+    if (checkedInput.disabled) {
+      document.getElementById('fm_' + DEFAULT_FLASH_MODE).checked = true;
+    }
+  }
+
+  /**
    * Enable/disable the HUB75 layout radio buttons and hide/show the whole
    * row if irrelevant. Buttons only show the board name - the chip + flash
    * size each one needs is rendered in the chart below instead, same
@@ -910,6 +1106,7 @@
     let manifestUrl;
     if (variantName === 'hub75') {
       document.getElementById('memoryTypeRow').hidden = true;
+      document.getElementById('flashModeRow').hidden = true;
 
       const layoutId = selectedLayout();
       manifestUrl = opt._manifests.hub75[layoutId]
@@ -919,12 +1116,13 @@
       // may have just corrected the checked button to a still-available one.
       const flashSizeId = selectedFlashSize();
       updateMemoryTypeAvailability(opt, variantName, flashSizeId);
+      updateFlashModeAvailability(opt, variantName, flashSizeId);
 
-      const byMem = opt._manifests[variantName][flashSizeId]
+      const byKey = opt._manifests[variantName][flashSizeId]
         || opt._manifests[variantName][Object.keys(opt._manifests[variantName])[0]];
-      // Same idea: read memory type after updateMemoryTypeAvailability's own correction.
-      const memTypeId = selectedMemoryType();
-      manifestUrl = byMem[memTypeId] || byMem[Object.keys(byMem)[0]];
+      // Same idea: read memory type / flash mode after their own update*Availability corrections above.
+      const key = selectedMemoryType() + '|' + selectedFlashMode();
+      manifestUrl = byKey[key] || byKey[Object.keys(byKey)[0]];
     }
 
     document.getElementById('inst').setAttribute('manifest', manifestUrl);
@@ -1096,6 +1294,7 @@
     document.getElementById('versionGroup').addEventListener('change', setManifest);
     document.getElementById('flashSizeRow').addEventListener('change', setManifest);
     document.getElementById('memoryTypeRow').addEventListener('change', setManifest);
+    document.getElementById('flashModeRow').addEventListener('change', setManifest);
     document.getElementById('layoutRow').addEventListener('change', setManifest);
     document.getElementById('showSerialHelp').addEventListener('click', showSerialHelp);
 
