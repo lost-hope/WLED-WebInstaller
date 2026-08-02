@@ -73,6 +73,18 @@
       </ol>
       <br><br>
 
+      <div id="uiModeRow">
+        <div class="row-label" data-i18n="uiMode">Mode:</div>
+        <div class="radio">
+          <input class="radio__input" type="radio" value="basic" name="uimode" id="uimode_basic" checked>
+          <label class="radio__label" for="uimode_basic" id="uimode_basic_label" data-i18n="uiModeBasic">Basic</label>
+          <input class="radio__input" type="radio" value="advanced" name="uimode" id="uimode_advanced">
+          <label class="radio__label" for="uimode_advanced" id="uimode_advanced_label" data-i18n="uiModeAdvanced">Advanced</label>
+        </div>
+        <div class="row-hint" data-i18n="uiModeHint">Basic keeps things simple: pick a version and install at 4MB. Switch to Advanced for flash size, memory type, flash mode, and HUB75 layout options.</div>
+      </div>
+      <br>
+
       <select id="ver" class="btn">
         <option data-i18n="loadingVersions">Loading versions...</option>
       </select><br>

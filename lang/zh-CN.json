@@ -1,5 +1,9 @@
 {
   "welcome": "欢迎使用 WLED 网络安装程序！",
+  "uiMode": "模式：",
+  "uiModeBasic": "基础",
+  "uiModeAdvanced": "高级",
+  "uiModeHint": "基础模式保持简单：选择版本后以 4MB 安装。切换到高级模式可使用闪存大小、内存类型、闪存模式和 HUB75 布局选项。",
   "unsupported1": "抱歉，尚不支持您使用的浏览器！",
   "unsupported2": "请在桌面版 Chrome 或 Edge 上尝试。",
   "unsupported3": "在此处查找二进制文件：",

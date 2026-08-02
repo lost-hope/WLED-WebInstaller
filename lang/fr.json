@@ -1,5 +1,9 @@
 {
   "welcome": "Bienvenue dans l'installateur web WLED !",
+  "uiMode": "Mode :",
+  "uiModeBasic": "Simple",
+  "uiModeAdvanced": "Avancé",
+  "uiModeHint": "Le mode Simple reste minimaliste : choisissez une version et installez en 4MB. Passez en mode Avancé pour les options de taille de flash, type de mémoire, mode flash et disposition HUB75.",
   "unsupported1": "Désolé, votre navigateur n'est pas encore pris en charge !",
   "unsupported2": "Veuillez essayer avec Chrome ou Edge sur ordinateur.",
   "unsupported3": "Retrouvez les fichiers binaires ici :",

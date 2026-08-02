@@ -21,6 +21,17 @@
   const MAX_STABLE_RELEASES = 8;
   const MAX_BETA_RELEASES = 2;
 
+  // "Basic" hides every secondary row (flash size, memory type, flash
+  // mode) and forces their defaults, leaving only the release/variant
+  // selection visible - see selectedFlashSize/selectedMemoryType/
+  // selectedFlashMode and setManifest's forceBasicMode step below. The
+  // HUB75 layout row is deliberately NOT included in that list: it stays
+  // visible whenever the HUB75 variant is picked, in both modes, since
+  // there's no single "default" HUB75 board to fall back to - the layout
+  // choice is as essential as the version dropdown itself, not an
+  // advanced/optional refinement.
+  const DEFAULT_UI_MODE = 'basic';
+
   // Base URLs for locally-hosted bootloader / partition-table files. These
   // are chip-specific (and, for the ESP32-S3, flash-size specific) and are
   // shared across all WLED versions. bin/boot/ groups them into
@@ -883,26 +894,42 @@
     return sel.options[sel.selectedIndex];
   }
 
+  /** Get the selected UI mode ("basic" or "advanced") from its radio group. */
+  function selectedUiMode() {
+    const checked = document.querySelector('input[name="uimode"]:checked');
+    return checked ? checked.value : DEFAULT_UI_MODE;
+  }
+
   /** Get the selected firmware variant id from the variant radio group. */
   function selectedVariant() {
     const checked = document.querySelector('input[name="version"]:checked');
     return checked ? checked.value : 'normal';
   }
 
-  /** Get the selected flash-size id from the flash-size radio group. */
+  /**
+   * Get the selected flash-size id from the flash-size radio group. In
+   * Basic mode the row is hidden and this always returns the default
+   * (4MB) regardless of the hidden radio's actual state - every declared
+   * flash size is reachable via client-side re-flagging (see
+   * getPatchedBootloaderUrl), so 4MB is always a valid choice for every
+   * chip/variant.
+   */
   function selectedFlashSize() {
+    if (selectedUiMode() === 'basic') return DEFAULT_FLASH_SIZE;
     const checked = document.querySelector('input[name="flashsize"]:checked');
     return checked ? checked.value : DEFAULT_FLASH_SIZE;
   }
 
-  /** Get the selected memory (PSRAM) type id from its radio group. */
+  /** Get the selected memory (PSRAM) type id from its radio group. Forced to "standard" in Basic mode - see selectedFlashSize. */
   function selectedMemoryType() {
+    if (selectedUiMode() === 'basic') return DEFAULT_MEMORY_TYPE;
     const checked = document.querySelector('input[name="memorytype"]:checked');
     return checked ? checked.value : DEFAULT_MEMORY_TYPE;
   }
 
-  /** Get the selected flash-mode id from its radio group. */
+  /** Get the selected flash-mode id from its radio group. Forced to "default" in Basic mode - see selectedFlashSize. */
   function selectedFlashMode() {
+    if (selectedUiMode() === 'basic') return DEFAULT_FLASH_MODE;
     const checked = document.querySelector('input[name="flashmode"]:checked');
     return checked ? checked.value : DEFAULT_FLASH_MODE;
   }
@@ -1075,6 +1102,24 @@
     }
   }
 
+  /**
+   * In Basic mode, hide flashSizeRow/memoryTypeRow/flashModeRow no matter
+   * what their own availability checks just decided - called last, after
+   * updateSecondaryRow/updateMemoryTypeAvailability/updateFlashModeAvailability,
+   * so it always wins. layoutRow is untouched: see the DEFAULT_UI_MODE
+   * comment for why HUB75's layout choice isn't treated as "advanced".
+   * The rows' underlying radio selections are left alone (not reset) -
+   * selectedFlashSize/selectedMemoryType/selectedFlashMode already force
+   * the effective values to their defaults while in Basic mode, so a
+   * user's Advanced-mode picks simply reappear if they switch back.
+   */
+  function forceBasicMode() {
+    if (selectedUiMode() !== 'basic') return;
+    document.getElementById('flashSizeRow').hidden = true;
+    document.getElementById('memoryTypeRow').hidden = true;
+    document.getElementById('flashModeRow').hidden = true;
+  }
+
   /** Show/update whichever secondary row (flash size, or HUB75 layout) applies to the current variant. */
   function updateSecondaryRow(opt, variantName) {
     const flashRow = document.getElementById('flashSizeRow');
@@ -1124,6 +1169,8 @@
       const key = selectedMemoryType() + '|' + selectedFlashMode();
       manifestUrl = byKey[key] || byKey[Object.keys(byKey)[0]];
     }
+
+    forceBasicMode();
 
     document.getElementById('inst').setAttribute('manifest', manifestUrl);
     document.getElementById('verstr').textContent = opt.text;
@@ -1291,6 +1338,7 @@
     loadBuildInfo();
 
     document.getElementById('ver').addEventListener('change', applySelection);
+    document.getElementById('uiModeRow').addEventListener('change', setManifest);
     document.getElementById('versionGroup').addEventListener('change', setManifest);
     document.getElementById('flashSizeRow').addEventListener('change', setManifest);
     document.getElementById('memoryTypeRow').addEventListener('change', setManifest);

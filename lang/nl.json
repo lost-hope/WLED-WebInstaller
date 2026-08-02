@@ -1,5 +1,9 @@
 {
   "welcome": "Welkom bij het WLED-webinstallatieprogramma!",
+  "uiMode": "Modus:",
+  "uiModeBasic": "Eenvoudig",
+  "uiModeAdvanced": "Geavanceerd",
+  "uiModeHint": "Eenvoudig houdt het simpel: kies een versie en installeer op 4MB. Schakel over naar Geavanceerd voor opties voor flashgrootte, geheugentype, flashmodus en HUB75-lay-out.",
   "unsupported1": "Sorry, uw browser wordt nog niet ondersteund!",
   "unsupported2": "Probeer het met Chrome of Edge op de desktop.",
   "unsupported3": "Vind hier de binaire bestanden:",

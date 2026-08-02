@@ -1,5 +1,9 @@
 {
   "welcome": "Willkommen beim WLED-Webinstallationsprogramm!",
+  "uiMode": "Modus:",
+  "uiModeBasic": "Einfach",
+  "uiModeAdvanced": "Erweitert",
+  "uiModeHint": "Einfach hält es simpel: Version wählen und mit 4MB installieren. Wechseln Sie zu Erweitert für Speichergröße, Speichertyp, Flash-Modus und HUB75-Layout-Optionen.",
   "unsupported1": "Ihr Browser wird leider noch nicht unterstützt!",
   "unsupported2": "Bitte versuchen Sie es mit Chrome oder Edge am Desktop.",
   "unsupported3": "Hier finden Sie die Binärdateien:",
