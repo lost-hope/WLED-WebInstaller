@@ -412,19 +412,24 @@
   // also keeps them out of the flash-size chart, where they'd otherwise
   // show up as confusing near-duplicates of ESP32/ESP32-S3.
   //
-  // `suffixes` is either one suffix (applies at every flash size, like the
-  // plain ESP32 build already does) or a { flashSizeId: suffix } map for
-  // sizes where the alternate build only exists at one specific size (the
-  // PSRAM bus mode split for ESP32-S3 is only published at 8MB - 4MB is
-  // already QSPI-only and 16MB is already OPI-only regardless of this
-  // selection). "standard" itself means no PSRAM for every chip, including
-  // ESP32-S3 at 8MB - OPI is an opt-in override here just like Wrover/QSPI,
-  // even though it's common on 8MB dev boards.
+  // `suffixes` is either one suffix (applies at every flash size a chip
+  // actually declares - see CHIP_CONFIG[chip].flashSizes) or a
+  // { flashSizeId: suffix } map for sizes where the alternate build only
+  // exists at one specific size (the PSRAM bus mode split for ESP32-S3 is
+  // only published at 8MB - 4MB is already QSPI-only and 16MB is already
+  // OPI-only regardless of this selection). "standard" itself means no
+  // PSRAM for every chip, including ESP32-S3 at 8MB - OPI is an opt-in
+  // override here just like Wrover/QSPI, even though it's common on 8MB
+  // dev boards. Wrover uses the map form even though WLED only ever
+  // publishes one `_ESP32_WROVER.bin` asset (repeated across its three
+  // real sizes) specifically so it's absent - and the option hidden - at
+  // 1MB/2MB, sizes ESP32 (Wrover or otherwise) never actually comes in;
+  // those only exist for ESP8266 in the flash-size row (see FLASH_SIZES).
   const MEMORY_TYPE_IDS = ['standard', 'wrover', 'qspi', 'opi'];
   const DEFAULT_MEMORY_TYPE = 'standard';
 
   const MEMORY_TYPE_ASSETS = {
-    wrover: { chip: 'ESP32', suffixes: '_ESP32_WROVER.bin' },
+    wrover: { chip: 'ESP32', suffixes: { '4MB': '_ESP32_WROVER.bin', '8MB': '_ESP32_WROVER.bin', '16MB': '_ESP32_WROVER.bin' } },
     qspi: { chip: 'ESP32-S3', suffixes: { '8MB': '_ESP32-S3_8MB_qspi.bin' } },
     opi: { chip: 'ESP32-S3', suffixes: { '8MB': '_ESP32-S3_8MB_opi.bin' } }
   };
