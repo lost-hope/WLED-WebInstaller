@@ -1,9 +1,103 @@
+:root {
+    color-scheme: dark;
+
+    /* Surfaces - matches lost-hope.github.io/sensor-hub-site/ */
+    --bg: #0a0a0c;
+    --surface: #17181c;
+    --surface-2: #1c1e23;
+    --border: #2a2c31;
+    --border-strong: #383a41;
+
+    /* Text */
+    --text: #ffffff;
+    --text-dim: #aeb2ba;
+    /* #7d8189 - lightened from the reference's #6d7178, which only hit 3.62:1
+       against --surface (fails WCAG AA's 4.5:1 for normal text). This passes
+       4.5:1+ against both --bg and --surface while staying visibly the
+       dimmest text tier. */
+    --text-faint: #7d8189;
+
+    /* Accent: a single token works for both text-on-dark AND fills-under-dark-text
+       here (unlike the previous palette) because this blue is light enough that
+       --accent-ink (near-black) reads at 8.4:1+ on top of it - no second
+       "fill" shade needed. */
+    --accent: #37c6ff;
+    --accent-hover: #5ed1ff;
+    --accent-ink: #04222c;
+    --accent-soft: rgba(55, 198, 255, 0.14);
+
+    --warn: #ffb648;
+    --warn-soft: rgba(255, 182, 72, 0.12);
+
+    /* Divider gradient (decorative only - never used for text) */
+    --divider-red: #ff5c5c;
+    --divider-yellow: #ffd23d;
+    --divider-blue: #37c6ff;
+
+    /* Sharp corners everywhere - no radius scale needed */
+    --radius: 0px;
+
+    /* Type scale */
+    --text-xs: 11px;
+    --text-sm: 12px;
+    --text-base: 13px;
+    --text-md: 14px;
+    --text-lg: 15px;
+    --text-xl: 16px;
+    --text-2xl: 28px;
+
+    /* Spacing scale - 4px base unit */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-7: 32px;
+    --space-8: 40px;
+
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+* {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
 body {
-    font-family: Verdana, Helvetica, sans-serif;
+    font-family: var(--font);
     text-align: center;
-    background-color: #222;
+    background: var(--bg);
     margin: 0;
-    color: #fff;
+    padding: 0 var(--space-4) var(--space-8);
+    color: var(--text-dim);
+    font-size: var(--text-md);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+    background: var(--accent-soft);
+    color: var(--text);
+}
+
+a {
+    color: var(--accent);
+    cursor: pointer;
+    text-decoration: none;
+    touch-action: manipulation;
+}
+
+a:hover,
+a:focus-visible {
+    color: var(--accent-hover);
+    text-decoration: underline;
+}
+
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }
 
 .language-selector-container {
@@ -12,65 +106,107 @@ body {
     right: 15px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
     z-index: 100;
 }
 
 .language-label {
-    color: #fff;
-    font-size: 16px;
+    color: var(--text-faint);
+    font-size: var(--text-base);
     font-weight: 500;
 }
 
 .language-select {
-    width: 150px !important;
+    width: 140px !important;
     margin: 0 !important;
-    background-position: 126px 17px !important;
+    font-size: var(--text-base) !important;
+    padding: var(--space-2) 28px var(--space-2) var(--space-3) !important;
 }
 
 select {
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
-    background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' fill='white'><polygon points='0,0 100,0 50,50'/></svg>") no-repeat;
-    background-size: 12px;
-    background-position: 206px 17px;
-    padding-left: 12px !important;
+    font-family: inherit;
+    background-color: var(--surface-2);
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0 L10 0 L5 6 Z' fill='%23aeb2ba'/></svg>");
     background-repeat: no-repeat;
-    outline: none;
+    background-position: right 14px center;
+    background-size: 10px 6px;
+    border: 1px solid var(--border-strong);
+    color: var(--text);
+    touch-action: manipulation;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+select:hover {
+    border-color: var(--accent);
 }
 
 select:-moz-focusring {
     transition-duration: 0s;
     color: transparent;
-    text-shadow: 0 0 0 #fff;
+    text-shadow: 0 0 0 var(--text);
 }
 
 option {
-    background-color: #333;
-    color: #fff;
+    background-color: var(--surface-2);
+    color: var(--text);
 }
 
 .btn {
-    outline: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
     cursor: pointer;
-    padding: 8px;
-    margin: 10px;
+    height: 48px;
+    padding: 0 var(--space-5);
+    margin: var(--space-2);
     width: 230px;
-    font-family: Verdana, Helvetica, sans-serif;
-    font-size: 19px;
-    background-color: #333;
-    color: white;
-    border: 0px solid white;
-    border-radius: 25px;
+    font-family: var(--font);
+    font-size: var(--text-base);
+    text-align: center;
+    text-decoration: none;
+    background-color: transparent;
+    color: var(--text);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
+    touch-action: manipulation;
+    transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
+}
+
+.btn:hover {
+    border-color: var(--accent);
+}
+
+.btn:active {
+    transform: translateY(1px);
+}
+
+/* Uppercase/letterspaced "button" voice - real buttons and button-styled links
+   only, never the version/language <select> (which shares .btn for sizing but
+   must keep its real option text, e.g. "English" not "ENGLISH"). */
+a.btn,
+button.btn {
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+}
+
+a.btn:hover,
+button.btn:hover {
+    color: var(--accent);
+    text-decoration: none;
 }
 
 img {
-    width: 770px;
-    max-width: 80%;
+    width: 560px;
+    max-width: 68%;
+    height: auto;
     image-rendering: pixelated;
     image-rendering: crisp-edges;
-    margin: 3vh 0 5px 0;
+    margin: 4vh 0 var(--space-2) 0;
     animation: fi 1s;
 }
 
@@ -79,12 +215,10 @@ img {
 }
 
 .radio {
-    display: inline-flex;
+    display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    overflow: hidden;
-    border-radius: 25px;
-    box-shadow: 0 0 5px rgba(0, 0, 0, 0);
+    gap: var(--space-2);
 }
 
 .radio__input {
@@ -92,21 +226,38 @@ img {
 }
 
 .radio__label {
-    padding: 8px 14px;
-    font-size: 14px;
-    font-family: sans-serif;
-    color: #ffffff;
-    background: #09f;
+    padding: var(--space-3) var(--space-4);
+    font-size: var(--text-base);
+    font-family: var(--font);
+    font-weight: 500;
+    color: var(--text-dim);
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius);
     cursor: pointer;
-    transition: background 0.1s;
+    touch-action: manipulation;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
-.radio__label:not(:last-of-type) {
-    border-right: 1px solid #006b50;
+.radio__label:hover {
+    color: var(--text);
+    border-color: var(--accent);
 }
 
 .radio__input:checked+.radio__label {
-    background: rgb(0, 95, 158);
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
+}
+
+.radio__input:checked+.radio__label:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+
+.radio__input:focus-visible+.radio__label {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
 }
 
 #flashSizeRow[hidden] {
@@ -114,40 +265,55 @@ img {
 }
 
 .row-label {
-    font-size: 14px;
-    color: #ccc;
-    margin-bottom: 6px;
+    font-size: var(--text-base);
+    font-weight: 700;
+    letter-spacing: 1.3px;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: var(--space-2);
 }
 
 .row-hint {
-    font-size: 12px;
-    color: #888;
-    margin-top: 6px;
+    font-size: var(--text-sm);
+    color: var(--text-faint);
+    margin-top: var(--space-2);
+    max-width: 420px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .flash-size-chart {
-    margin: 10px auto 0;
+    margin: var(--space-3) auto 0;
     border-collapse: collapse;
-    font-size: 12px;
-    color: #ccc;
+    font-size: var(--text-sm);
+    color: var(--text-dim);
+    border: 1px solid var(--border);
 }
 
 .flash-size-chart th {
-    font-size: 11px;
-    font-weight: normal;
-    color: #888;
-    padding: 2px 10px;
-    border-bottom: 1px solid #444;
+    font-size: var(--text-xs);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: var(--text-faint);
+    padding: var(--space-2) var(--space-3);
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
 }
 
 .flash-size-chart td {
-    padding: 2px 10px;
+    padding: var(--space-1) var(--space-3);
     text-align: left;
+    font-family: var(--font-mono);
+}
+
+.flash-size-chart tr:not(:last-child) td {
+    border-bottom: 1px solid var(--border);
 }
 
 .flash-size-chart td:first-child {
-    font-weight: bold;
-    color: #fff;
+    font-weight: 600;
+    color: var(--text);
     text-align: right;
 }
 
@@ -156,25 +322,37 @@ img {
 }
 
 .build-info {
-    font-size: 11px;
-    color: #666;
-    margin-top: 8px;
+    font-size: var(--text-xs);
+    font-family: var(--font-mono);
+    color: var(--text-faint);
+    margin-top: var(--space-3);
 }
 
 #proxyChecking {
-    font-size: 12px;
-    color: #888;
+    font-size: var(--text-sm);
+    color: var(--text-faint);
 }
 
 #proxyChecking:not([hidden]) {
     display: block;
-    margin-top: -4px;
+    margin-top: var(--space-3);
 }
 
+#unsupported,
+#loadError,
 #proxyBlocked {
     max-width: 600px;
     margin: 0 auto;
-    padding: 0 20px;
+    padding: var(--space-5);
+    border: 1px solid var(--warn-soft);
+    background: var(--warn-soft);
+    border-radius: var(--radius);
+}
+
+#unsupported .btn,
+#loadError .btn,
+#proxyBlocked .btn {
+    margin-top: var(--space-3);
 }
 
 @keyframes fi {
@@ -188,60 +366,135 @@ img {
 }
 
 .main {
+    position: relative;
+    max-width: clamp(540px, 56vw, 780px);
+    margin: 0 auto var(--space-8);
+    padding: var(--space-7) var(--space-6) var(--space-6);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
     animation: fi 1.5s .7s both;
 }
 
-a {
-    color: #fff;
-    cursor: pointer;
-    text-decoration: underline;
+@media (prefers-reduced-motion: reduce) {
+
+    .main,
+    img {
+        animation: none;
+    }
 }
 
-#showSerialHelp {
-    background: none;
-    border: none;
-    color: #fff;
-    cursor: pointer;
-    text-decoration: underline;
-    padding: 0;
-    font-family: inherit;
-    font-size: inherit;
+.eyebrow {
+    display: block;
+    font-size: var(--text-sm);
+    font-weight: 700;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin: 0 0 var(--space-3);
 }
 
-ol {
-    margin: auto;
+.main h1 {
+    font-size: var(--text-2xl);
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    text-transform: uppercase;
+    margin: 0;
+    color: var(--text);
+}
+
+.divider {
+    width: 72px;
+    height: 4px;
+    margin: var(--space-4) auto var(--space-6);
+    background: linear-gradient(90deg, var(--divider-red), var(--divider-yellow) 50%, var(--divider-blue));
+}
+
+#flasher ol {
+    margin: 0 auto var(--space-6);
+    padding-left: var(--space-6);
     text-align: left;
     display: inline-block;
+    max-width: 480px;
+    color: var(--text-dim);
+    font-size: var(--text-md);
 }
 
 li::marker {
-    text-decoration: bold;
-    color: #09f;
+    color: var(--accent);
+    font-weight: 600;
 }
 
 li {
-    margin: 5px;
+    margin: var(--space-2) 0;
 }
 
 .container {
-    width: 80%;
-    max-width: 510px;
+    width: 100%;
+    max-width: 480px;
     margin: auto;
-    border-radius: 5px;
+    border-radius: var(--radius);
     box-sizing: border-box;
-    background-color: #222;
     overflow: hidden;
 }
 
 .inst-button {
     padding: 0;
+    margin-top: var(--space-2);
 }
 
-@media (prefers-color-scheme: dark) {
-    ewt-install-dialog {
-        --mdc-theme-surface: #333;
-        --mdc-dialog-heading-ink-color: #fff;
-        --mdc-dialog-content-ink-color: #ddd;
-        --mdc-text-field-fill-color: #ddd;
-    }
+#installBtn {
+    width: 260px;
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: 1px solid transparent;
+}
+
+#installBtn:hover:not(:disabled) {
+    background: var(--accent-hover);
+    color: var(--accent-ink);
+}
+
+#installBtn:disabled {
+    background: var(--surface-2);
+    color: var(--text-faint);
+    border-color: var(--border);
+    cursor: not-allowed;
+}
+
+#uiModeRow,
+#flashSizeRow,
+#memoryTypeRow,
+#flashModeRow,
+#layoutRow {
+    margin: var(--space-5) 0;
+}
+
+#showSerialHelp {
+    background: none;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    text-decoration: none;
+    padding: 0;
+    font-family: inherit;
+    font-size: inherit;
+    touch-action: manipulation;
+}
+
+#showSerialHelp:hover {
+    color: var(--accent-hover);
+    text-decoration: underline;
+}
+
+#serialHelp {
+    font-size: var(--text-base);
+    color: var(--text-dim);
+}
+
+ewt-install-dialog {
+    --mdc-theme-surface: #17181c;
+    --mdc-dialog-heading-ink-color: #ffffff;
+    --mdc-dialog-content-ink-color: #aeb2ba;
+    --mdc-text-field-fill-color: #aeb2ba;
 }
