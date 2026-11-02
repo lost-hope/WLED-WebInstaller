@@ -234,3 +234,39 @@ fewer shape of file to reason about, with no behavior difference (blank
 `otadata` either way, per the `boot_app0.bin` note above).
 `tools/gen_boot_images.py`'s `merge` subcommand that built those images is
 still there and still works, in case a merged image is ever needed again.
+
+## ESP32-C6 (files only - **not yet wired into the installer**)
+
+WLED's CI now also produces an `WLED_x.x.x_ESP32-C6_4MB.bin` release asset
+(from the `esp32c6dev_4MB` env in `platformio.ini`; the `esp32c6dev_8MB` env
+exists too but is commented out of CI's default env list as of this
+writing, so there's currently no 8MB asset to pair with). Like every other
+chip here, that asset is app-only - no bootloader or partition table - so
+this repo ships `bootloaders/esp32-c6/bootloader_c6_4m.bin`, built the same
+way as every other canonical file (fresh PlatformIO build of `esp32c6dev_4MB`,
+then round-tripped through `tools/gen_boot_images.py`'s `bootloader`
+subcommand - see `tools/README.md`). ESP32-C6's bootloader offset is `0x0`
+(confirmed via `esptool`'s `CHIP_DEFS["esp32c6"].BOOTLOADER_FLASH_OFFSET`),
+same as ESP32-C3/-S3, not `0x1000`. Its flash mode is QIO (`esp32c6dev_4MB`
+sets `board_build.flash_mode = qio` / `board_build.arduino.memory_type =
+qio_qspi`), matching the one asset WLED publishes for this chip.
+
+No new partition-table file was needed: `esp32c6dev_4MB`'s partition CSV
+(`tools/WLED_ESP32_4MB_1MB_FS.csv` in the WLED source tree) is byte-identical
+to `partitions/partitions_c3_4m.bin` (verified with `cmp` against a fresh
+build's `partitions.bin`), so flashing ESP32-C6 at 4MB would reuse that
+existing file rather than adding a duplicate - same sharing rationale as the
+ESP32/ESP32-C3 4MB note above.
+
+| File | Chip | Flash size | Offset | What it is |
+|---|---|---|---|---|
+| `bootloaders/esp32-c6/bootloader_c6_4m.bin` | ESP32-C6 | 4MB | `0x0` | 2nd-stage bootloader, QIO (**canonical**, only published mode/size for this chip) |
+| `partitions/partitions_c3_4m.bin` (shared, no C6-specific copy) | ESP32-C6 | 4MB | `0x8000` | Partition table |
+| *(app itself - `WLED_x.x.x_ESP32-C6_4MB.bin`)* | ESP32-C6 | 4MB | `0x10000` | Application (ota_0 slot - see the partition CSV) |
+
+This chip is deliberately **not** added to `CHIP_CONFIG` in `app.js` yet, so
+it does not show up in the installer UI - only the raw files/offsets exist
+in this repo for now. Wiring it up later would follow the same pattern as
+any other single-mode, single-size chip (closest precedent: ESP32-S2/-S3's
+canonical-file-plus-client-side-resize approach, once/if WLED ever publishes
+an 8MB or 16MB C6 asset to resize toward).

@@ -64,6 +64,7 @@ are the ones matching the chips/sizes used in `bin/boot/`:
 | ESP32-S2 | DIO | *(no WLED env sets this either)* |
 | ESP32-S3 | QIO (canonical) | `esp32s3_4M_qspi` / `esp32s3dev_8MB_opi` / `esp32s3dev_16MB_opi` (any of these - all QIO) |
 | ESP32-S3 | OPI | `esp32S3_wroom2_32MB` (the only WLED env with `board_build.arduino.memory_type = opi_opi`) |
+| ESP32-C6 | QIO (canonical) | `esp32c6dev_4MB` (**experimental, not wired into `app.js`/`CHIP_CONFIG` yet** - see the ESP32-C6 section in [bin/boot/README.md](../bin/boot/README.md)) |
 
 Env names do move around between WLED releases - run `pio run -e nonexistent`
 (it'll fail and list all valid envs) or check `platformio.ini` directly if
