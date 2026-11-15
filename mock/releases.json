@@ -1,0 +1,31 @@
+[
+  {
+    "tag_name": "nightly",
+    "prerelease": true,
+    "draft": false,
+    "assets": [
+      { "name": "WLED_17.0.0-devV5_ESP32.bin", "browser_download_url": "mock/bin/WLED_17.0.0-devV5_ESP32.bin" },
+      { "name": "WLED_17.0.0-devV5_ESP32_Ethernet.bin", "browser_download_url": "mock/bin/WLED_17.0.0-devV5_ESP32_Ethernet.bin" },
+      { "name": "WLED_17.0.0-devV5_ESP32_DEBUG.bin", "browser_download_url": "mock/bin/WLED_17.0.0-devV5_ESP32_DEBUG.bin" },
+      { "name": "WLED_17.0.0-devV5_ESP32_WROVER.bin", "browser_download_url": "mock/bin/WLED_17.0.0-devV5_ESP32_WROVER.bin" },
+      { "name": "WLED_17.0.0-devV5_ESP32_HUB75.bin", "browser_download_url": "mock/bin/WLED_17.0.0-devV5_ESP32_HUB75.bin" },
+      { "name": "WLED_17.0.0-devV5_ESP32_HUB75_forum_pinout.bin", "browser_download_url": "mock/bin/WLED_17.0.0-devV5_ESP32_HUB75_forum_pinout.bin" },
+      { "name": "WLED_17.0.0-devV5_ESP32-C3.bin", "browser_download_url": "mock/bin/WLED_17.0.0-devV5_ESP32-C3.bin" },
+      { "name": "WLED_17.0.0-devV5_ESP32-C3-QIO.bin", "browser_download_url": "mock/bin/WLED_17.0.0-devV5_ESP32-C3-QIO.bin" },
+      { "name": "WLED_17.0.0-devV5_ESP32-S2.bin", "browser_download_url": "mock/bin/WLED_17.0.0-devV5_ESP32-S2.bin" },
+      { "name": "WLED_17.0.0-devV5_ESP32-S3_4M_qspi.bin", "browser_download_url": "mock/bin/WLED_17.0.0-devV5_ESP32-S3_4M_qspi.bin" },
+      { "name": "WLED_17.0.0-devV5_ESP32-S3_8MB_none.bin", "browser_download_url": "mock/bin/WLED_17.0.0-devV5_ESP32-S3_8MB_none.bin" },
+      { "name": "WLED_17.0.0-devV5_ESP32-S3_8MB_qspi.bin", "browser_download_url": "mock/bin/WLED_17.0.0-devV5_ESP32-S3_8MB_qspi.bin" },
+      { "name": "WLED_17.0.0-devV5_ESP32-S3_8MB_opi.bin", "browser_download_url": "mock/bin/WLED_17.0.0-devV5_ESP32-S3_8MB_opi.bin" },
+      { "name": "WLED_17.0.0-devV5_ESP32-S3_16MB_opi.bin", "browser_download_url": "mock/bin/WLED_17.0.0-devV5_ESP32-S3_16MB_opi.bin" },
+      { "name": "WLED_17.0.0-devV5_ESP32-S3_HD-WF2.bin", "browser_download_url": "mock/bin/WLED_17.0.0-devV5_ESP32-S3_HD-WF2.bin" },
+      { "name": "WLED_17.0.0-devV5_ESP32-S3_Adafruit_Matrixportal.bin", "browser_download_url": "mock/bin/WLED_17.0.0-devV5_ESP32-S3_Adafruit_Matrixportal.bin" },
+      { "name": "WLED_17.0.0-devV5_ESP32-S3_16MB_opi_HUB75.bin", "browser_download_url": "mock/bin/WLED_17.0.0-devV5_ESP32-S3_16MB_opi_HUB75.bin" },
+      { "name": "WLED_17.0.0-devV5_ESP32-S3_Waveshare_HUB75.bin", "browser_download_url": "mock/bin/WLED_17.0.0-devV5_ESP32-S3_Waveshare_HUB75.bin" },
+      { "name": "WLED_17.0.0-devV5_ESP32-C6_4MB.bin", "browser_download_url": "mock/bin/WLED_17.0.0-devV5_ESP32-C6_4MB.bin" },
+      { "name": "WLED_17.0.0-devV5_ESP32-C5.bin", "browser_download_url": "mock/bin/WLED_17.0.0-devV5_ESP32-C5.bin" },
+      { "name": "WLED_17.0.0-devV5_ESP32-C5_8MB_qspi.bin", "browser_download_url": "mock/bin/WLED_17.0.0-devV5_ESP32-C5_8MB_qspi.bin" },
+      { "name": "WLED_17.0.0-devV5_ESP32-P4_16MB.bin", "browser_download_url": "mock/bin/WLED_17.0.0-devV5_ESP32-P4_16MB.bin" }
+    ]
+  }
+]
