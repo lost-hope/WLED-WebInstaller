@@ -27,6 +27,9 @@ bin/boot/
   bootloaders/
     esp32/       bootloader_esp32_8m.bin, bootloader_esp32_8m_qio.bin
     esp32-c3/    bootloader_c3_8m.bin, bootloader_c3_8m_qio.bin
+    esp32-c5/    bootloader_c5.bin
+    esp32-c6/    bootloader_c6_4m.bin
+    esp32-p4/    bootloader_p4_16m.bin
     esp32-s2/    bootloader_s2.bin, bootloader_s2_dio.bin
     esp32-s3/    bootloader_s3.bin, bootloader_s3_opi.bin
   partitions/
@@ -114,6 +117,27 @@ need recomputing - only the header nibble and the digest do.
 still the right tool for regenerating a chip's *canonical* file itself (e.g.
 from a fresh PlatformIO build at a different flash size than what's
 currently committed) - see [tools/README.md](../../tools/README.md).
+
+**ESP32's bootloader was refreshed for the V5 toolchain (2026-11-14):**
+WLED's `main` branch build classic ESP32 (`esp32dev` and friends) against
+ESP-IDF 5.5.4 now (Tasmota `platform-espressif32` fork `2026.05.50`), not
+the IDF 4.4.8-era `esp32_idf_V4` platform the docs below used to assume.
+A fresh build's bootloader is a genuinely different binary from the one
+previously committed here (304 bytes larger - `esptool image_info` shows
+`ESP-IDF: 5.5.4.260407` vs the old file's `5.3.4.260127`; header format
+unchanged, segment sizes bigger) - `bootloaders/esp32/bootloader_esp32_8m.bin`
+has been regenerated from that fresh build the same way as always (fresh
+`esp32dev` build -> `tools/gen_boot_images.py bootloader` re-flagged to
+8MB). Tested on real ESP32 hardware: flashing this new bootloader + a much
+older, officially-published IDF-4.4.8 app binary (`v16.0.1`'s
+`WLED_16.0.1_ESP32.bin`) side by side - i.e. simulating an OTA update from
+an old release onto a freshly-USB-flashed new-toolchain device - booted
+cleanly with no crash/reset loop. The 2nd-stage bootloader/app ABI
+(partition table format + app descriptor header) is deliberately kept
+stable by Espressif across IDF versions for exactly this reason, so mixing
+bootloader/app IDF versions here is expected to keep working the same way
+it always has - there is no per-release-channel bootloader selection in
+this repo, and none is being added for this.
 
 `partitions_s3_hdwf2.bin` is paired with the plain 8MB-flagged
 `bootloader_s3.bin` rather than a size-matched one - this looks wrong (the
@@ -234,3 +258,105 @@ fewer shape of file to reason about, with no behavior difference (blank
 `otadata` either way, per the `boot_app0.bin` note above).
 `tools/gen_boot_images.py`'s `merge` subcommand that built those images is
 still there and still works, in case a merged image is ever needed again.
+
+## ESP32-C6
+
+WLED's CI now also produces an `WLED_x.x.x_ESP32-C6_4MB.bin` release asset
+(from the `esp32c6dev_4MB` env in `platformio.ini`; the `esp32c6dev_8MB` env
+exists too but is commented out of CI's default env list as of this
+writing, so there's currently no 8MB asset to pair with). Like every other
+chip here, that asset is app-only - no bootloader or partition table - so
+this repo ships `bootloaders/esp32-c6/bootloader_c6_4m.bin`, built the same
+way as every other canonical file (fresh PlatformIO build of `esp32c6dev_4MB`,
+then round-tripped through `tools/gen_boot_images.py`'s `bootloader`
+subcommand - see `tools/README.md`). ESP32-C6's bootloader offset is `0x0`
+(confirmed via `esptool`'s `CHIP_DEFS["esp32c6"].BOOTLOADER_FLASH_OFFSET`),
+same as ESP32-C3/-S3, not `0x1000`. Its flash mode is QIO (`esp32c6dev_4MB`
+sets `board_build.flash_mode = qio` / `board_build.arduino.memory_type =
+qio_qspi`), matching the one asset WLED publishes for this chip.
+
+No new partition-table file was needed: `esp32c6dev_4MB`'s partition CSV
+(`tools/WLED_ESP32_4MB_1MB_FS.csv` in the WLED source tree) is byte-identical
+to `partitions/partitions_c3_4m.bin` (verified with `cmp` against a fresh
+build's `partitions.bin`), so flashing ESP32-C6 at 4MB would reuse that
+existing file rather than adding a duplicate - same sharing rationale as the
+ESP32/ESP32-C3 4MB note above.
+
+| File | Chip | Flash size | Offset | What it is |
+|---|---|---|---|---|
+| `bootloaders/esp32-c6/bootloader_c6_4m.bin` | ESP32-C6 | 4MB | `0x0` | 2nd-stage bootloader, QIO (**canonical**, only published mode/size for this chip) |
+| `partitions/partitions_c3_4m.bin` (shared, no C6-specific copy) | ESP32-C6 | 4MB | `0x8000` | Partition table |
+| *(app itself - `WLED_x.x.x_ESP32-C6_4MB.bin`)* | ESP32-C6 | 4MB | `0x10000` | Application (ota_0 slot - see the partition CSV) |
+
+This chip is wired into `CHIP_CONFIG` in `app.js`, same single-mode/
+single-size pattern as ESP32-S2/-S3 (re-flagged client-side for other
+declared sizes, once/if WLED ever publishes an 8MB or 16MB C6 asset to
+resize toward - `esp32c6dev_8MB` exists in `platformio.ini` but is still
+commented out of CI's default env list as of this writing).
+
+## ESP32-C5 (prepared for WLED's nightly reactivation, 2026-11-14)
+
+WLED's `main` branch (not yet released in any tagged version - CI is
+currently disabled pending a nightly-build reactivation) adds two new
+ESP32-C5 release assets: `WLED_x.x.x_ESP32-C5.bin` (4MB, no PSRAM, from
+the `esp32c5dev` env) and `WLED_x.x.x_ESP32-C5_8MB_qspi.bin` (8MB + QSPI
+PSRAM, from `esp32c5dev_8MB_qspi`). Both build with
+`board_build.flash_mode = qio` / `arduino.memory_type = qio_qspi`, and
+their bootloader.bin outputs are the same compiled bootloader re-flagged
+for their respective target flash size - same shape as every other
+multi-size chip here (verified with `cmp -l`: only the flash-size nibble
+and its recomputed SHA-256 digest differ between the two, 33 bytes out of
+12672, everything else byte-identical). The 8MB one is shipped as the
+**canonical** reference (per the usual "biggest declared size" precedent)
+and re-flagged client-side down to 4MB. ESP32-C5's bootloader offset is
+`0x2000` (confirmed via `esptool`'s
+`CHIP_DEFS["esp32c5"].BOOTLOADER_FLASH_OFFSET`) - **not** `0x0` like
+ESP32-C3/-C6, and not `0x1000` like ESP32/-S2. This is the one new thing
+to get right when wiring up this chip; everything else follows the
+established pattern.
+
+The two C5 assets do **not** share a partition CSV: the 4MB build uses
+`esp32.big_partitions` (`tools/WLED_ESP32_4MB_256KB_FS.csv`, a smaller-FS/
+bigger-firmware layout not used anywhere else in this repo, so it needed
+a genuinely new partition-table file), while the 8MB build uses
+`esp32.large_partitions` - byte-identical to the existing shared
+`partitions/partitions_esp32_8m.bin` (same file already used by plain
+ESP32/ESP32-C6-8MB/ESP32-S3 at 8MB), so no new file was needed there.
+
+| File | Chip | Flash size | Offset | What it is |
+|---|---|---|---|---|
+| *(none - patched client-side)* | ESP32-C5 | 4MB | `0x2000` | `bootloaders/esp32-c5/bootloader_c5.bin` re-flagged for 4MB flash, computed in the browser at install time |
+| `partitions/partitions_c5_4m.bin` | ESP32-C5 | 4MB | `0x8000` | Partition table (new - `big_partitions` CSV, not shared with any other chip) |
+| *(app itself - `WLED_x.x.x_ESP32-C5.bin`)* | ESP32-C5 | 4MB | `0x10000` | Application |
+| `bootloaders/esp32-c5/bootloader_c5.bin` | ESP32-C5 | 8MB | `0x2000` | 2nd-stage bootloader, QIO (**canonical** reference for this chip) |
+| `partitions/partitions_esp32_8m.bin` (shared, no C5-specific copy) | ESP32-C5 | 8MB | `0x8000` | Partition table |
+| *(app itself - `WLED_x.x.x_ESP32-C5_8MB_qspi.bin`)* | ESP32-C5 | 8MB | `0x10000` | Application |
+
+## ESP32-P4 (prepared for WLED's nightly reactivation, 2026-11-14)
+
+Also new on `main`: `WLED_x.x.x_ESP32-P4_16MB.bin` (16MB flash, from the
+`esp32p4_16MB` env - marked experimental in `platformio.ini`; a 32MB env
+also exists but is commented out of CI's default list). The ESP32-P4 has
+no on-chip Wi-Fi/BT radio - boards pair it with an ESP32-C6 running
+ESP-Hosted as a network co-processor - but that co-processor ships
+pre-flashed on every P4 dev board this targets, so from this installer's
+perspective it's still a single chip/single USB port to flash, same flow
+as every other chip here.
+
+This chip's build also uses a genuinely different upstream platform
+fork from everything else in this repo (`pioarduino/platform-espressif32`
+rather than the Tasmota fork `esp32_idf_V5`/`esp32_idf_V4` every other
+chip uses) - worth knowing if a future WLED platform bump ever needs
+re-verifying per chip rather than assuming they all move together.
+ESP32-P4's bootloader offset is `0x2000`, same as ESP32-C5 (confirmed via
+`esptool`'s `CHIP_DEFS["esp32p4"].BOOTLOADER_FLASH_OFFSET`). Its partition
+CSV (`tools/WLED_ESP32_16MB_9MB_FS.csv`, `esp32.extreme_partitions`) is
+byte-identical to the already-shared `partitions/partitions_esp32_16m.bin`
+(same file used by plain ESP32/ESP32-C3/-S2/-S3 at 16MB) - no new
+partition file needed.
+
+| File | Chip | Flash size | Offset | What it is |
+|---|---|---|---|---|
+| `bootloaders/esp32-p4/bootloader_p4_16m.bin` | ESP32-P4 | 16MB | `0x2000` | 2nd-stage bootloader, QIO (**canonical**, only published size for this chip) |
+| `partitions/partitions_esp32_16m.bin` (shared, no P4-specific copy) | ESP32-P4 | 16MB | `0x8000` | Partition table |
+| *(app itself - `WLED_x.x.x_ESP32-P4_16MB.bin`)* | ESP32-P4 | 16MB | `0x10000` | Application |

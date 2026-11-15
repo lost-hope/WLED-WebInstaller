@@ -252,6 +252,61 @@
       defaultFlashSize: '4MB',
       bootParts: () => [],
       firmwareOffset: 0
+    },
+    // ESP32-C6, -C5 and -P4 ship from WLED's nightly builds (CI currently
+    // paused pending reactivation - see bin/boot/README.md). No flash-mode
+    // axis for any of them - each publishes a single native mode (QIO).
+    'ESP32-C6': {
+      chipFamily: 'ESP32-C6',
+      defaultFlashSize: '4MB',
+      // Single published size (4MB) - bootParts ignores its args, same as
+      // ESP8266 above. bootloader offset is 0x0 (confirmed via esptool's
+      // CHIP_DEFS["esp32c6"].BOOTLOADER_FLASH_OFFSET), same as ESP32-C3/-S3.
+      bootParts: () => Promise.resolve([
+        { path: bootloaderBase + 'esp32-c6/bootloader_c6_4m.bin', offset: 0 },
+        { path: partitionBase + 'partitions_c3_4m.bin', offset: 32768 }
+      ]),
+      firmwareOffset: 65536
+    },
+    'ESP32-C5': {
+      chipFamily: 'ESP32-C5',
+      defaultFlashSize: '8MB',
+      // No flashSizes array needed - its VARIANTS entry is a per-size
+      // suffix map (like ESP32-S3), so availability comes from that map's
+      // own keys, not from here (see getFlashSizeAvailability).
+      // 8MB (bootloader_c5.bin) is the canonical reference bootloader, used
+      // as-is; 4MB is that same file re-flagged client-side. ESP32-C5's
+      // bootloader offset is 0x2000 (confirmed via esptool's
+      // CHIP_DEFS["esp32c5"].BOOTLOADER_FLASH_OFFSET) - unlike every other
+      // chip here, not 0x0 or 0x1000.
+      bootParts: (flashSizeId) => {
+        if (flashSizeId === '8MB') {
+          return Promise.resolve([
+            { path: bootloaderBase + 'esp32-c5/bootloader_c5.bin', offset: 8192 },
+            { path: partitionBase + 'partitions_esp32_8m.bin', offset: 32768 }
+          ]);
+        }
+        return getPatchedBootloaderUrl('esp32-c5/bootloader_c5.bin', '4MB').then((url) => [
+          { path: url, offset: 8192 },
+          { path: partitionBase + 'partitions_c5_4m.bin', offset: 32768 }
+        ]);
+      },
+      firmwareOffset: 65536
+    },
+    'ESP32-P4': {
+      chipFamily: 'ESP32-P4',
+      defaultFlashSize: '16MB',
+      // Single published size (16MB) - bootParts ignores its args. No
+      // on-chip Wi-Fi/BT (boards pair it with an ESP32-C6 co-processor via
+      // ESP-Hosted, pre-flashed on the board already), but that's still
+      // one chip/one USB port to flash from this installer's perspective.
+      // Bootloader offset is 0x2000, same as ESP32-C5 (confirmed via
+      // esptool's CHIP_DEFS["esp32p4"].BOOTLOADER_FLASH_OFFSET).
+      bootParts: () => Promise.resolve([
+        { path: bootloaderBase + 'esp32-p4/bootloader_p4_16m.bin', offset: 8192 },
+        { path: partitionBase + 'partitions_esp32_16m.bin', offset: 32768 }
+      ]),
+      firmwareOffset: 65536
     }
   };
 
@@ -373,7 +428,10 @@
       // an opt-in via the memory-type row, not the default, even though
       // most 8MB S3 dev boards do have it.
       'ESP32-S3': { '4MB': '_ESP32-S3_4M_qspi.bin', '8MB': '_ESP32-S3_8MB_none.bin', '16MB': '_ESP32-S3_16MB_opi.bin' },
-      'ESP8266':  { '1MB': '_ESP01.bin', '2MB': '_ESP02.bin', '4MB': '_ESP8266.bin' }
+      'ESP8266':  { '1MB': '_ESP01.bin', '2MB': '_ESP02.bin', '4MB': '_ESP8266.bin' },
+      'ESP32-C6': '_ESP32-C6_4MB.bin',
+      'ESP32-C5': { '4MB': '_ESP32-C5.bin', '8MB': '_ESP32-C5_8MB_qspi.bin' },
+      'ESP32-P4': '_ESP32-P4_16MB.bin'
     },
     ethernet: {
       'ESP32': '_ESP32_Ethernet.bin'
@@ -541,9 +599,16 @@
     }) || null;
   }
 
-  /** Rewrite a GitHub release asset URL to WLED's CORS-enabled download mirror. */
+  /**
+   * Rewrite a GitHub release asset URL to WLED's CORS-enabled download
+   * mirror. Only applies to actual github.com/githubusercontent.com asset
+   * URLs - anything else (e.g. a local path from a ?mockReleases= fixture,
+   * see loadReleases) is left as-is, since there's no mirror for it.
+   */
   function mirrorUrl(githubUrl) {
-    return DOWNLOAD_MIRROR + new URL(githubUrl).pathname;
+    const url = new URL(githubUrl, window.location.href);
+    if (!/(^|\.)(github\.com|githubusercontent\.com)$/.test(url.hostname)) return githubUrl;
+    return DOWNLOAD_MIRROR + url.pathname;
   }
 
   /** Extract the WLED version string from asset filenames (for nightly). */
@@ -1297,18 +1362,27 @@
     if (opt && opt._release) checkProxyHealth(opt._release);
   }
 
+  /**
+   * ?mockReleases=<path> loads a local fixture (same shape as the GitHub
+   * releases API) instead of the real API - for testing changes to chip
+   * support (new CHIP_CONFIG/VARIANTS entries, etc.) before WLED has
+   * actually published matching release assets. See mock/README.md. Never
+   * cached, so edits to the fixture show up on the next reload.
+   */
+  const mockReleasesUrl = new URLSearchParams(window.location.search).get('mockReleases');
+
   /** Load releases from cache/API, build UI options, and apply default selection. */
   function loadReleases() {
-    const cached = getCachedReleases();
+    const cached = !mockReleasesUrl && getCachedReleases();
     const releasesPromise = cached
       ? Promise.resolve(cached)
-      : fetch(GITHUB_RELEASES_URL + '?per_page=30')
+      : fetch(mockReleasesUrl || (GITHUB_RELEASES_URL + '?per_page=30'))
         .then(function (res) {
-          if (!res.ok) throw new Error('GitHub API responded with ' + res.status);
+          if (!res.ok) throw new Error((mockReleasesUrl ? 'Mock releases fixture' : 'GitHub API') + ' responded with ' + res.status);
           return res.json();
         })
         .then(function (releases) {
-          cacheReleases(releases);
+          if (!mockReleasesUrl) cacheReleases(releases);
           return releases;
         });
 
