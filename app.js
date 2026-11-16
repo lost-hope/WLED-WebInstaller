@@ -1529,6 +1529,55 @@
     if (typeof i18n_apply === 'function') i18n_apply();
   }
 
+  /** Build an esp-web-tools manifest for a user-supplied firmware file. */
+  async function buildCustomManifest(chip, flashSizeId, flashModeId, file) {
+    const config = CHIP_CONFIG[chip];
+    const parts = await config.bootParts(flashSizeId, flashModeId, true);
+    parts.push({ path: URL.createObjectURL(file), offset: config.firmwareOffset });
+    return {
+      name: 'WLED',
+      version: 'custom',
+      home_assistant_domain: 'wled',
+      new_install_prompt_erase: true,
+      builds: [{ chipFamily: config.chipFamily, parts: parts }]
+    };
+  }
+
+  /** Rebuild and apply the Custom-mode manifest from the current selections, or disable Install if no file is chosen yet. */
+  async function applyCustomManifest() {
+    const file = document.getElementById('customFirmwareInput').files[0];
+    const installBtn = document.getElementById('installBtn');
+    if (!file) {
+      installBtn.disabled = true;
+      return;
+    }
+
+    const chip = document.getElementById('customChipSelect').value;
+    const sizeChecked = document.querySelector('#customFlashSizeOptions input:checked');
+    const modeChecked = document.querySelector('#customFlashModeOptions input:checked');
+    const flashSizeId = sizeChecked ? sizeChecked.value : CHIP_CONFIG[chip].defaultFlashSize;
+    const flashModeId = modeChecked ? modeChecked.value : null;
+
+    const manifest = await buildCustomManifest(chip, flashSizeId, flashModeId, file);
+    document.getElementById('inst').setAttribute('manifest', createManifestUrl(manifest));
+    installBtn.disabled = false;
+  }
+
+  /** Switch the visible panel (release-driven vs. Custom) and refresh whichever is now active. */
+  function onUiModeChange() {
+    const mode = selectedUiMode();
+    const isCustom = mode === 'custom';
+    document.getElementById('releaseDrivenPanel').hidden = isCustom;
+    document.getElementById('customPanel').hidden = !isCustom;
+
+    if (isCustom) {
+      renderCustomSizeAndModeOptions(document.getElementById('customChipSelect').value);
+      applyCustomManifest();
+    } else {
+      setManifest();
+    }
+  }
+
   // ---------------------------------------------------------------------
   // Wire up DOM events once the document is ready
   // ---------------------------------------------------------------------
@@ -1540,7 +1589,7 @@
     loadBuildInfo();
 
     document.getElementById('ver').addEventListener('change', applySelection);
-    document.getElementById('uiModeRow').addEventListener('change', setManifest);
+    document.getElementById('uiModeRow').addEventListener('change', onUiModeChange);
     document.getElementById('versionGroup').addEventListener('change', setManifest);
     document.getElementById('flashSizeRow').addEventListener('change', setManifest);
     document.getElementById('memoryTypeRow').addEventListener('change', setManifest);
@@ -1550,9 +1599,13 @@
 
     populateCustomChipSelect();
     renderCustomSizeAndModeOptions(document.getElementById('customChipSelect').value);
+    document.getElementById('customFirmwareInput').addEventListener('change', applyCustomManifest);
     document.getElementById('customChipSelect').addEventListener('change', function () {
       renderCustomSizeAndModeOptions(this.value);
+      applyCustomManifest();
     });
+    document.getElementById('customFlashSizeOptions').addEventListener('change', applyCustomManifest);
+    document.getElementById('customFlashModeOptions').addEventListener('change', applyCustomManifest);
 
     loadReleases();
   }
