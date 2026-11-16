@@ -1462,6 +1462,74 @@
   }
 
   // ---------------------------------------------------------------------
+  // Custom firmware mode
+  // ---------------------------------------------------------------------
+  // Lets a user flash their own firmware .bin (own usermods, or a WLED CI
+  // build artifact) instead of a published release. Nothing here touches
+  // the release-driven flow above - no release/variant/memory-type axis
+  // applies once the firmware itself is already a fixed file; the user
+  // just picks chip, flash size, and flash mode directly from
+  // CHIP_CONFIG, and bootParts() is called with explicitMode=true to
+  // bypass resolveFlashMode()'s release-asset gating (see CHIP_CONFIG).
+
+  const CUSTOM_CHIP_ORDER = ['ESP32', 'ESP32-C3', 'ESP32-S2', 'ESP32-S3', 'ESP32-C6', 'ESP32-C5', 'ESP32-P4', 'ESP8266'];
+  const CUSTOM_FLASH_MODE_LABELS = { dio: 'customFmDual', qio: 'customFmQuad', opi: 'customFmOctal' };
+
+  /** Populate the Custom-mode chip <select> once at init. */
+  function populateCustomChipSelect() {
+    const select = document.getElementById('customChipSelect');
+    CUSTOM_CHIP_ORDER.forEach(function (chip) {
+      const opt = document.createElement('option');
+      opt.value = chip;
+      opt.textContent = chip;
+      select.appendChild(opt);
+    });
+    select.value = 'ESP32';
+  }
+
+  /** Build one radio+label pair for a Custom-mode options row. */
+  function buildCustomRadioOption(groupName, value, labelText, labelI18nKey, checked) {
+    const input = document.createElement('input');
+    input.type = 'radio';
+    input.className = 'radio__input';
+    input.name = groupName;
+    input.value = value;
+    input.id = groupName + '_' + value;
+    input.checked = checked;
+
+    const label = document.createElement('label');
+    label.className = 'radio__label';
+    label.htmlFor = input.id;
+    label.textContent = labelText;
+    if (labelI18nKey) label.setAttribute('data-i18n', labelI18nKey);
+
+    const fragment = document.createDocumentFragment();
+    fragment.appendChild(input);
+    fragment.appendChild(label);
+    return fragment;
+  }
+
+  /** Re-render the Custom-mode flash-size/flash-mode options for the given chip. */
+  function renderCustomSizeAndModeOptions(chip) {
+    const config = CHIP_CONFIG[chip];
+
+    const sizeContainer = document.getElementById('customFlashSizeOptions');
+    sizeContainer.innerHTML = '';
+    config.flashSizes.forEach(function (sizeId, i) {
+      sizeContainer.appendChild(buildCustomRadioOption('customflashsize', sizeId, sizeId, null, i === 0));
+    });
+
+    const modeContainer = document.getElementById('customFlashModeOptions');
+    modeContainer.innerHTML = '';
+    config.flashModes.forEach(function (modeId, i) {
+      modeContainer.appendChild(buildCustomRadioOption('customflashmode', modeId, modeId, CUSTOM_FLASH_MODE_LABELS[modeId], i === 0));
+    });
+    document.getElementById('customFlashModeRow').hidden = config.flashModes.length === 0;
+
+    if (typeof i18n_apply === 'function') i18n_apply();
+  }
+
+  // ---------------------------------------------------------------------
   // Wire up DOM events once the document is ready
   // ---------------------------------------------------------------------
 
@@ -1479,6 +1547,12 @@
     document.getElementById('flashModeRow').addEventListener('change', setManifest);
     document.getElementById('layoutRow').addEventListener('change', setManifest);
     document.getElementById('showSerialHelp').addEventListener('click', showSerialHelp);
+
+    populateCustomChipSelect();
+    renderCustomSizeAndModeOptions(document.getElementById('customChipSelect').value);
+    document.getElementById('customChipSelect').addEventListener('change', function () {
+      renderCustomSizeAndModeOptions(this.value);
+    });
 
     loadReleases();
   }
