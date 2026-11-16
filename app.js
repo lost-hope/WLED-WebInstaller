@@ -1575,6 +1575,15 @@
       applyCustomManifest();
     } else {
       setManifest();
+      // applyCustomManifest() may have just disabled installBtn (no file
+      // chosen) - restore the release-driven enabled state, which is
+      // otherwise only ever set by checkProxyHealth()'s one-time check.
+      // If that check is still pending, leave it disabled (matches the
+      // page's own initial state before the first check resolves); if it
+      // already ran, the mirror wasn't blocked (showProxyBlocked() would
+      // have hidden the whole #flasher panel, including this radio group,
+      // making this branch unreachable in that case).
+      document.getElementById('installBtn').disabled = !proxyHealthChecked;
     }
   }
 
