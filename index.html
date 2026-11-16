@@ -79,11 +79,14 @@
           <label class="radio__label" for="uimode_basic" id="uimode_basic_label" data-i18n="uiModeBasic">Basic</label>
           <input class="radio__input" type="radio" value="advanced" name="uimode" id="uimode_advanced">
           <label class="radio__label" for="uimode_advanced" id="uimode_advanced_label" data-i18n="uiModeAdvanced">Advanced</label>
+          <input class="radio__input" type="radio" value="custom" name="uimode" id="uimode_custom">
+          <label class="radio__label" for="uimode_custom" id="uimode_custom_label" data-i18n="uiModeCustom">Custom</label>
         </div>
         <div class="row-hint" data-i18n="uiModeHint">Basic keeps things simple: pick a version and install at 4MB. Switch to Advanced for flash size, memory type, flash mode, and HUB75 layout options.</div>
       </div>
       <br>
 
+      <div id="releaseDrivenPanel">
       <select id="ver" class="btn" data-i18n-aria-label="versionSelectLabel">
         <option data-i18n="loadingVersions">Loading versions...</option>
       </select><br>
@@ -217,6 +220,32 @@
         <div class="row-hint" data-i18n="layoutHint">Pick the board matching your HUB75 setup - see the chart above for the chip and flash size it needs.</div>
       </div>
       <br>
+      </div>
+
+      <div id="customPanel" hidden>
+        <div class="row-hint" data-i18n="customHint">For your own compiled firmware - a custom usermods build, or a WLED CI build artifact. Pick the chip, flash size, and flash mode yourself; none of it is detected from the file.</div>
+        <br>
+
+        <div class="row-label" data-i18n="customFirmwareLabel">Firmware file:</div>
+        <input type="file" id="customFirmwareInput" accept=".bin">
+        <br><br>
+
+        <div class="row-label" data-i18n="customChipLabel">Chip:</div>
+        <select id="customChipSelect" class="btn"></select>
+        <br><br>
+
+        <div id="customFlashSizeRow">
+          <div class="row-label" data-i18n="flashSize">Flash size:</div>
+          <div class="radio" id="customFlashSizeOptions"></div>
+        </div>
+        <br>
+
+        <div id="customFlashModeRow">
+          <div class="row-label" data-i18n="flashMode">Flash mode:</div>
+          <div class="radio" id="customFlashModeOptions"></div>
+        </div>
+        <br>
+      </div>
 
       <div class="container inst-button">
         <esp-web-install-button id="inst" manifest="">
