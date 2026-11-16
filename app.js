@@ -289,15 +289,36 @@
     'ESP32-C6': {
       chipFamily: 'ESP32-C6',
       defaultFlashSize: '4MB',
-      // Single published size (4MB) - bootParts ignores its args, same as
-      // ESP8266 above. bootloader offset is 0x0 (confirmed via esptool's
+      // Only 4MB is a published release size (VARIANTS below) - 8MB/16MB
+      // are Custom-tab-only, offered because the partition tables they
+      // need are already here, shared byte-for-byte with other chips at
+      // those sizes (same source CSV in WLED's platformio.ini - confirmed
+      // for 8MB via a real esp32c6dev_8MB build: its partitions.bin and a
+      // client-side-patched bootloader_c6_4m.bin both matched byte-for-byte
+      // against the existing shared 8MB files; 16MB shares its CSV path
+      // with ESP32/-C3/-S2/-S3/-P4's 16MB envs the same way). bootloader
+      // offset is 0x0 (confirmed via esptool's
       // CHIP_DEFS["esp32c6"].BOOTLOADER_FLASH_OFFSET), same as ESP32-C3/-S3.
-      flashSizes: ['4MB'],
+      flashSizes: ['4MB', '8MB', '16MB'],
       flashModes: ['qio'],
-      bootParts: () => Promise.resolve([
-        { path: bootloaderBase + 'esp32-c6/bootloader_c6_4m.bin', offset: 0 },
-        { path: partitionBase + 'partitions_c3_4m.bin', offset: 32768 }
-      ]),
+      bootParts: (flashSizeId) => {
+        // Only 8MB/16MB are patched; any other value (including a stray
+        // 1MB/2MB from the release-driven dropdown's full-matrix probe for
+        // this fixed-suffix chip - see generateManifest/resolveSuffix)
+        // safely falls through to the native 4MB file, same defensive
+        // clamp ESP32's bootParts above uses.
+        if (flashSizeId !== '8MB' && flashSizeId !== '16MB') {
+          return Promise.resolve([
+            { path: bootloaderBase + 'esp32-c6/bootloader_c6_4m.bin', offset: 0 },
+            { path: partitionBase + 'partitions_c3_4m.bin', offset: 32768 }
+          ]);
+        }
+        const partitionFile = flashSizeId === '16MB' ? 'partitions_esp32_16m.bin' : 'partitions_esp32_8m.bin';
+        return getPatchedBootloaderUrl('esp32-c6/bootloader_c6_4m.bin', flashSizeId).then((url) => [
+          { path: url, offset: 0 },
+          { path: partitionBase + partitionFile, offset: 32768 }
+        ]);
+      },
       firmwareOffset: 65536
     },
     'ESP32-C5': {
@@ -305,24 +326,35 @@
       defaultFlashSize: '8MB',
       // flashSizes is the Custom firmware tab's source of truth (the
       // release-driven flow instead derives availability from VARIANTS'
-      // per-size suffix map - see getFlashSizeAvailability).
-      flashSizes: ['4MB', '8MB'],
+      // per-size suffix map - see getFlashSizeAvailability). 16MB/32MB are
+      // Custom-tab-only (no published release asset) - same shared-CSV
+      // reasoning as ESP32-C6 above: 16MB shares its partition CSV with
+      // ESP32/-C3/-S2/-S3/-C6/-P4's 16MB envs, 32MB with -S3's Waveshare
+      // layout and ESP32-P4's 32MB env.
+      flashSizes: ['4MB', '8MB', '16MB', '32MB'],
       flashModes: ['qio'],
       // 8MB (bootloader_c5.bin) is the canonical reference bootloader, used
-      // as-is; 4MB is that same file re-flagged client-side. ESP32-C5's
-      // bootloader offset is 0x2000 (confirmed via esptool's
+      // as-is; every other size is that same file re-flagged client-side.
+      // ESP32-C5's bootloader offset is 0x2000 (confirmed via esptool's
       // CHIP_DEFS["esp32c5"].BOOTLOADER_FLASH_OFFSET) - unlike every other
       // chip here, not 0x0 or 0x1000.
       bootParts: (flashSizeId) => {
-        if (flashSizeId === '8MB') {
+        // Only 4MB/16MB/32MB are patched; any other value (including a
+        // stray 1MB/2MB from the release-driven dropdown's full-matrix
+        // probe for the 8MB-axis variant - see
+        // generateManifest/resolveSuffix) safely falls through to the
+        // native 8MB file, same defensive clamp ESP32's bootParts above
+        // uses.
+        const partitionFiles = { '4MB': 'partitions_c5_4m.bin', '16MB': 'partitions_esp32_16m.bin', '32MB': 'partitions_s3_32m.bin' };
+        if (!partitionFiles[flashSizeId]) {
           return Promise.resolve([
             { path: bootloaderBase + 'esp32-c5/bootloader_c5.bin', offset: 8192 },
             { path: partitionBase + 'partitions_esp32_8m.bin', offset: 32768 }
           ]);
         }
-        return getPatchedBootloaderUrl('esp32-c5/bootloader_c5.bin', '4MB').then((url) => [
+        return getPatchedBootloaderUrl('esp32-c5/bootloader_c5.bin', flashSizeId).then((url) => [
           { path: url, offset: 8192 },
-          { path: partitionBase + 'partitions_c5_4m.bin', offset: 32768 }
+          { path: partitionBase + partitionFiles[flashSizeId], offset: 32768 }
         ]);
       },
       firmwareOffset: 65536
@@ -330,18 +362,28 @@
     'ESP32-P4': {
       chipFamily: 'ESP32-P4',
       defaultFlashSize: '16MB',
-      // Single published size (16MB) - bootParts ignores its args. No
+      // Only 16MB is a published release size - 32MB is Custom-tab-only,
+      // sharing its partition CSV with ESP32-S3's Waveshare layout and
+      // ESP32-C5's 32MB entry above (same shared-CSV reasoning). No
       // on-chip Wi-Fi/BT (boards pair it with an ESP32-C6 co-processor via
       // ESP-Hosted, pre-flashed on the board already), but that's still
       // one chip/one USB port to flash from this installer's perspective.
       // Bootloader offset is 0x2000, same as ESP32-C5 (confirmed via
       // esptool's CHIP_DEFS["esp32p4"].BOOTLOADER_FLASH_OFFSET).
-      flashSizes: ['16MB'],
+      flashSizes: ['16MB', '32MB'],
       flashModes: ['qio'],
-      bootParts: () => Promise.resolve([
-        { path: bootloaderBase + 'esp32-p4/bootloader_p4_16m.bin', offset: 8192 },
-        { path: partitionBase + 'partitions_esp32_16m.bin', offset: 32768 }
-      ]),
+      bootParts: (flashSizeId) => {
+        if (flashSizeId === '32MB') {
+          return getPatchedBootloaderUrl('esp32-p4/bootloader_p4_16m.bin', '32MB').then((url) => [
+            { path: url, offset: 8192 },
+            { path: partitionBase + 'partitions_s3_32m.bin', offset: 32768 }
+          ]);
+        }
+        return Promise.resolve([
+          { path: bootloaderBase + 'esp32-p4/bootloader_p4_16m.bin', offset: 8192 },
+          { path: partitionBase + 'partitions_esp32_16m.bin', offset: 32768 }
+        ]);
+      },
       firmwareOffset: 65536
     }
   };
@@ -353,7 +395,8 @@
     { id: '2MB', label: '2MB' },
     { id: '4MB', label: '4MB' },
     { id: '8MB', label: '8MB' },
-    { id: '16MB', label: '16MB' }
+    { id: '16MB', label: '16MB' },
+    { id: '32MB', label: '32MB' }
   ];
   const DEFAULT_FLASH_SIZE = '4MB';
 
@@ -621,10 +664,32 @@
     return entry !== null && typeof entry === 'object';
   }
 
-  /** Resolve the asset suffix for a chip, given the globally selected flash size. */
+  /**
+   * Resolve the asset suffix for a chip, given the globally selected flash
+   * size. A missing/falsy flashSizeId (not yet selected) falls back to the
+   * chip's own default size - but a *specific*, unsupported size must
+   * resolve to no suffix at all, not silently match anyway:
+   * - A fixed (non-axis) entry is the same asset at every size *this chip
+   *   declares support for* (CHIP_CONFIG[chip].flashSizes) - matching it
+   *   for a size outside that list (e.g. a 32MB-capable chip's single
+   *   asset showing up for an ESP32 that tops out at 16MB, now that 32MB
+   *   is a selectable row at all) would pair a real asset with whatever
+   *   bootParts' own fallback does for a size it doesn't recognize, which
+   *   is a silent mismatch, not a safe default.
+   * - An axis entry (e.g. ESP32-C5 has no 16MB/32MB key - those are
+   *   Custom-tab-only, paired via CHIP_CONFIG.flashSizes/bootParts
+   *   instead, not a real release asset) must likewise resolve to nothing
+   *   for a key it doesn't have, not fall back to a different size's
+   *   asset.
+   */
   function resolveSuffix(entry, chip, flashSizeId) {
-    if (!hasFlashAxis(entry)) return entry;
-    return entry[flashSizeId] || entry[CHIP_CONFIG[chip].defaultFlashSize];
+    if (!hasFlashAxis(entry)) {
+      if (!flashSizeId) return entry;
+      const sizes = (CHIP_CONFIG[chip] && CHIP_CONFIG[chip].flashSizes) || [];
+      return sizes.indexOf(flashSizeId) !== -1 ? entry : null;
+    }
+    if (!flashSizeId) return entry[CHIP_CONFIG[chip].defaultFlashSize];
+    return entry[flashSizeId] || null;
   }
 
   /** Find a release asset whose name ends with `suffix` (ignore .gz files). */

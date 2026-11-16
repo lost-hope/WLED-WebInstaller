@@ -287,12 +287,27 @@ ESP32/ESP32-C3 4MB note above.
 | `bootloaders/esp32-c6/bootloader_c6_4m.bin` | ESP32-C6 | 4MB | `0x0` | 2nd-stage bootloader, QIO (**canonical**, only published mode/size for this chip) |
 | `partitions/partitions_c3_4m.bin` (shared, no C6-specific copy) | ESP32-C6 | 4MB | `0x8000` | Partition table |
 | *(app itself - `WLED_x.x.x_ESP32-C6_4MB.bin`)* | ESP32-C6 | 4MB | `0x10000` | Application (ota_0 slot - see the partition CSV) |
+| *(none - patched client-side)* | ESP32-C6 | 8MB | `0x0` | `bootloader_c6_4m.bin` re-flagged for 8MB, computed in the browser at install time |
+| `partitions/partitions_esp32_8m.bin` (shared) | ESP32-C6 | 8MB | `0x8000` | Partition table |
+| *(none - patched client-side)* | ESP32-C6 | 16MB | `0x0` | `bootloader_c6_4m.bin` re-flagged for 16MB |
+| `partitions/partitions_esp32_16m.bin` (shared) | ESP32-C6 | 16MB | `0x8000` | Partition table |
 
 This chip is wired into `CHIP_CONFIG` in `app.js`, same single-mode/
 single-size pattern as ESP32-S2/-S3 (re-flagged client-side for other
-declared sizes, once/if WLED ever publishes an 8MB or 16MB C6 asset to
-resize toward - `esp32c6dev_8MB` exists in `platformio.ini` but is still
-commented out of CI's default env list as of this writing).
+declared sizes). 8MB and 16MB are Custom-firmware-tab-only as of
+2026-11-16 - WLED still only publishes the one 4MB release asset
+(`esp32c6dev_8MB` exists in `platformio.ini` but is commented out of CI's
+default env list) - but both are now genuinely flashable, verified with a
+real local `esp32c6dev_8MB` build: its `partitions.bin` matched
+`partitions_esp32_8m.bin` byte-for-byte, and `bootloader_c6_4m.bin`
+re-flagged to 8MB client-side matched its `bootloader.bin` byte-for-byte
+too. 16MB's partition table was not independently re-built (the
+`toolchain-riscv32-esp` package reverted to a thin stub mid-session, a
+recurring local PlatformIO issue - see the project's local-build notes)
+but shares the exact same CSV path (`esp32.extreme_partitions`) as
+ESP32/-C3/-S2/-S3/-P4's 16MB builds, all already verified mutually
+byte-identical, so the existing shared file was reused rather than
+re-deriving it from a fifth identical build.
 
 ## ESP32-C5 (prepared for WLED's nightly reactivation, 2026-11-14)
 
@@ -331,6 +346,19 @@ ESP32/ESP32-C6-8MB/ESP32-S3 at 8MB), so no new file was needed there.
 | `bootloaders/esp32-c5/bootloader_c5.bin` | ESP32-C5 | 8MB | `0x2000` | 2nd-stage bootloader, QIO (**canonical** reference for this chip) |
 | `partitions/partitions_esp32_8m.bin` (shared, no C5-specific copy) | ESP32-C5 | 8MB | `0x8000` | Partition table |
 | *(app itself - `WLED_x.x.x_ESP32-C5_8MB_qspi.bin`)* | ESP32-C5 | 8MB | `0x10000` | Application |
+| *(none - patched client-side)* | ESP32-C5 | 16MB | `0x2000` | `bootloader_c5.bin` re-flagged for 16MB, Custom-firmware-tab-only (no release asset) |
+| `partitions/partitions_esp32_16m.bin` (shared) | ESP32-C5 | 16MB | `0x8000` | Partition table |
+| *(none - patched client-side)* | ESP32-C5 | 32MB | `0x2000` | `bootloader_c5.bin` re-flagged for 32MB, Custom-firmware-tab-only (no release asset) |
+| `partitions/partitions_s3_32m.bin` (shared) | ESP32-C5 | 32MB | `0x8000` | Partition table |
+
+16MB/32MB are Custom-firmware-tab-only as of 2026-11-16: WLED's `main`
+doesn't publish a C5 asset at either size (the two real assets stay 4MB/
+8MB, see above), so these never appear in the release-driven flow's own
+flash-size chart/dropdown - only `CHIP_CONFIG[chip].flashSizes` lists
+them, which the Custom tab reads directly. Both share their partition CSV
+with sizes already verified elsewhere (16MB with ESP32/-C3/-S2/-S3/-C6/-P4,
+32MB with ESP32-S3's Waveshare HUB75 layout and ESP32-P4's 32MB entry
+below), so no new partition files were generated for them.
 
 ## ESP32-P4 (prepared for WLED's nightly reactivation, 2026-11-14)
 
@@ -360,3 +388,18 @@ partition file needed.
 | `bootloaders/esp32-p4/bootloader_p4_16m.bin` | ESP32-P4 | 16MB | `0x2000` | 2nd-stage bootloader, QIO (**canonical**, only published size for this chip) |
 | `partitions/partitions_esp32_16m.bin` (shared, no P4-specific copy) | ESP32-P4 | 16MB | `0x8000` | Partition table |
 | *(app itself - `WLED_x.x.x_ESP32-P4_16MB.bin`)* | ESP32-P4 | 16MB | `0x10000` | Application |
+| *(none - patched client-side)* | ESP32-P4 | 32MB | `0x2000` | `bootloader_p4_16m.bin` re-flagged for 32MB, computed in the browser at install time |
+| `partitions/partitions_s3_32m.bin` (shared) | ESP32-P4 | 32MB | `0x8000` | Partition table |
+
+32MB was added 2026-11-16: the `esp32p4_32MB` env in `platformio.ini`
+uses `tools/WLED_ESP32_32MB.csv` - the exact same CSV path as
+ESP32-S3's `esp32S3_wroom2_32MB` env, whose output is already the
+committed `partitions_s3_32m.bin` - so it's reused here rather than
+re-deriving an identical file from a fresh build (which this session's
+local toolchain couldn't complete anyway - the RISC-V toolchain package
+reverted to a thin stub partway through, a recurring local PlatformIO
+issue, not a WLED or platform problem). Since this is still the one
+published 16MB asset re-paired with a bigger partition table (the same
+"one firmware, multiple boot-file sizes" pattern plain ESP32 already
+uses, see that chip's table/bootParts above), it works in the
+release-driven flow too, not just the Custom firmware tab.
