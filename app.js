@@ -149,8 +149,13 @@
       // patching is known-good (see bin/boot/README.md). flashModeId picks
       // between DIO (default) and QIO bootloader files - see
       // resolveFlashMode / FLASH_MODE_BOOTLOADERS above.
-      bootParts: (flashSizeId, flashModeId) => {
-        const src = FLASH_MODE_BOOTLOADERS['ESP32'][resolveFlashMode('ESP32', flashModeId)];
+      // flashModes: both DIO and QIO bootloaders are real committed files
+      // (see bin/boot/), available for the Custom firmware tab even though
+      // WLED itself only ever publishes a DIO release asset for this chip.
+      flashModes: ['dio', 'qio'],
+      bootParts: (flashSizeId, flashModeId, explicitMode) => {
+        const mode = explicitMode ? flashModeId : resolveFlashMode('ESP32', flashModeId);
+        const src = FLASH_MODE_BOOTLOADERS['ESP32'][mode];
         if (flashSizeId === '8MB') {
           return Promise.resolve([
             { path: bootloaderBase + src, offset: 4096 },
@@ -177,8 +182,10 @@
       // (default) and QIO bootloader builds, both real PlatformIO builds
       // rather than anything patched, since flash mode is compiled-in
       // bootloader logic, not a header field (see bin/boot/README.md).
-      bootParts: (flashSizeId, flashModeId) => {
-        const src = FLASH_MODE_BOOTLOADERS['ESP32-C3'][resolveFlashMode('ESP32-C3', flashModeId)];
+      flashModes: ['dio', 'qio'],
+      bootParts: (flashSizeId, flashModeId, explicitMode) => {
+        const mode = explicitMode ? flashModeId : resolveFlashMode('ESP32-C3', flashModeId);
+        const src = FLASH_MODE_BOOTLOADERS['ESP32-C3'][mode];
         if (flashSizeId === '8MB') {
           return Promise.resolve([
             { path: bootloaderBase + src, offset: 0 },
@@ -204,8 +211,10 @@
       // needed at that size regardless of mode), 8MB/16MB re-flag whichever
       // mode was resolved. See resolveFlashMode / FLASH_MODE_BOOTLOADERS
       // above.
-      bootParts: (flashSizeId, flashModeId) => {
-        const src = FLASH_MODE_BOOTLOADERS['ESP32-S2'][resolveFlashMode('ESP32-S2', flashModeId)];
+      flashModes: ['dio', 'qio'],
+      bootParts: (flashSizeId, flashModeId, explicitMode) => {
+        const mode = explicitMode ? flashModeId : resolveFlashMode('ESP32-S2', flashModeId);
+        const src = FLASH_MODE_BOOTLOADERS['ESP32-S2'][mode];
         if (flashSizeId === '8MB' || flashSizeId === '16MB') {
           const partitions = flashSizeId === '16MB' ? 'partitions_s2_16m.bin' : 'partitions_s2_8m.bin';
           return getPatchedBootloaderUrl(src, flashSizeId).then((url) => [
@@ -223,18 +232,31 @@
     'ESP32-S3': {
       chipFamily: 'ESP32-S3',
       defaultFlashSize: '8MB',
+      // flashSizes/flashModes are the Custom firmware tab's source of
+      // truth (see app.js's Custom-mode section below) - DIO is not
+      // listed: Arduino-ESP32 v3.x's precompiled esp32-arduino-libs only
+      // ships QIO/qio_opi/opi_opi sdkconfig variants for this chip, no
+      // plain DIO at all (see bin/boot/README.md's "What's actually
+      // buildable" section) - not just unbuilt, genuinely not buildable
+      // with today's toolchain.
+      flashSizes: ['4MB', '8MB', '16MB', '32MB'],
+      flashModes: ['qio', 'opi'],
       // 8MB (bootloader_s3.bin, QIO) is the canonical reference bootloader,
-      // used as-is; 4MB/16MB are that same file re-flagged client-side (see
-      // getPatchedBootloaderUrl above). No normal-variant release asset
-      // needs OPI mode, so resolveFlashMode never actually picks anything
-      // but QIO here - the OPI bootloader (bootloader_s3_opi.bin) is real
-      // and committed, but only wired into the Waveshare HUB75 layout
-      // below, the one place a matching firmware asset exists for it (see
-      // bin/boot/README.md's "Flash mode" section).
-      bootParts: (flashSizeId, flashModeId) => {
-        const src = FLASH_MODE_BOOTLOADERS['ESP32-S3'][resolveFlashMode('ESP32-S3', flashModeId)];
-        if (flashSizeId === '4MB' || flashSizeId === '16MB') {
-          const partitions = flashSizeId === '16MB' ? 'partitions_s3_16m.bin' : 'partitions_s3_4m.bin';
+      // used as-is; 4MB/16MB/32MB are that same file (or bootloader_s3_opi.bin,
+      // for OPI) re-flagged client-side (see getPatchedBootloaderUrl above).
+      // No normal-variant release asset needs OPI mode, so resolveFlashMode
+      // never actually picks anything but QIO here - the OPI bootloader
+      // (bootloader_s3_opi.bin) is real and committed, wired into the
+      // Waveshare HUB75 layout below and, via the Custom firmware tab,
+      // directly selectable too (see bin/boot/README.md's "Flash mode"
+      // section).
+      bootParts: (flashSizeId, flashModeId, explicitMode) => {
+        const mode = explicitMode ? flashModeId : resolveFlashMode('ESP32-S3', flashModeId);
+        const src = FLASH_MODE_BOOTLOADERS['ESP32-S3'][mode];
+        if (flashSizeId === '4MB' || flashSizeId === '16MB' || flashSizeId === '32MB') {
+          const partitions = flashSizeId === '16MB' ? 'partitions_s3_16m.bin'
+            : flashSizeId === '32MB' ? 'partitions_s3_32m.bin'
+            : 'partitions_s3_4m.bin';
           return getPatchedBootloaderUrl(src, flashSizeId).then((url) => [
             { path: url, offset: 0 },
             { path: partitionBase + partitions, offset: 32768 }
@@ -250,18 +272,28 @@
     'ESP8266': {
       chipFamily: 'ESP8266',
       defaultFlashSize: '4MB',
+      // No flash-mode concept at all - a flat image, not a bootloader +
+      // partition table + app layout (see bootParts below). The Custom
+      // firmware tab hides its flash-mode row entirely for this chip.
+      flashSizes: ['1MB', '2MB', '4MB'],
+      flashModes: [],
       bootParts: () => [],
       firmwareOffset: 0
     },
     // ESP32-C6, -C5 and -P4 ship from WLED's nightly builds (CI currently
     // paused pending reactivation - see bin/boot/README.md). No flash-mode
-    // axis for any of them - each publishes a single native mode (QIO).
+    // axis for any of them in the release-driven flow - each publishes a
+    // single native mode (QIO) - and Dual/Octal buildability for these
+    // three newer chips is unverified, so the Custom firmware tab only
+    // offers QIO for them too (see the design spec's capability table).
     'ESP32-C6': {
       chipFamily: 'ESP32-C6',
       defaultFlashSize: '4MB',
       // Single published size (4MB) - bootParts ignores its args, same as
       // ESP8266 above. bootloader offset is 0x0 (confirmed via esptool's
       // CHIP_DEFS["esp32c6"].BOOTLOADER_FLASH_OFFSET), same as ESP32-C3/-S3.
+      flashSizes: ['4MB'],
+      flashModes: ['qio'],
       bootParts: () => Promise.resolve([
         { path: bootloaderBase + 'esp32-c6/bootloader_c6_4m.bin', offset: 0 },
         { path: partitionBase + 'partitions_c3_4m.bin', offset: 32768 }
@@ -271,9 +303,11 @@
     'ESP32-C5': {
       chipFamily: 'ESP32-C5',
       defaultFlashSize: '8MB',
-      // No flashSizes array needed - its VARIANTS entry is a per-size
-      // suffix map (like ESP32-S3), so availability comes from that map's
-      // own keys, not from here (see getFlashSizeAvailability).
+      // flashSizes is the Custom firmware tab's source of truth (the
+      // release-driven flow instead derives availability from VARIANTS'
+      // per-size suffix map - see getFlashSizeAvailability).
+      flashSizes: ['4MB', '8MB'],
+      flashModes: ['qio'],
       // 8MB (bootloader_c5.bin) is the canonical reference bootloader, used
       // as-is; 4MB is that same file re-flagged client-side. ESP32-C5's
       // bootloader offset is 0x2000 (confirmed via esptool's
@@ -302,6 +336,8 @@
       // one chip/one USB port to flash from this installer's perspective.
       // Bootloader offset is 0x2000, same as ESP32-C5 (confirmed via
       // esptool's CHIP_DEFS["esp32p4"].BOOTLOADER_FLASH_OFFSET).
+      flashSizes: ['16MB'],
+      flashModes: ['qio'],
       bootParts: () => Promise.resolve([
         { path: bootloaderBase + 'esp32-p4/bootloader_p4_16m.bin', offset: 8192 },
         { path: partitionBase + 'partitions_esp32_16m.bin', offset: 32768 }
